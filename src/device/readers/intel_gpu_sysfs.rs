@@ -38,7 +38,7 @@ pub enum MemoryVariant {
 /// (GTT pages are allocated on demand). Returning a fabricated value
 /// derived from system RAM would mis-represent the actual GPU memory
 /// situation, so we intentionally surface zero and let the reader add a
-/// `detail["Memory"]` note explaining the value.
+/// `detail["memory"]` note explaining the value.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub fn read_memory_bytes(device_dir: &Path, variant: MemoryVariant) -> (u64, u64) {
     if variant == MemoryVariant::Integrated {

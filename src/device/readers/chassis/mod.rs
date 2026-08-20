@@ -83,7 +83,7 @@ mod tests {
         let reader = create_chassis_reader();
         let platform = reader
             .get_chassis_info()
-            .and_then(|info| info.detail.get("platform").cloned());
+            .and_then(|info| info.detail.get(detail_keys::PLATFORM).cloned());
 
         if crate::device::is_intel_mac() {
             assert_eq!(platform.as_deref(), Some("Intel Mac"));

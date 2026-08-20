@@ -72,6 +72,7 @@ mod dxgi;
 #[cfg(target_os = "windows")]
 mod pdh;
 
+use crate::device::detail_keys;
 use crate::device::types::{GpuInfo, ProcessInfo};
 use ids::{AdapterIdentity, AdapterLuid};
 use std::collections::HashMap;
@@ -303,7 +304,9 @@ pub fn pdh_query_available() -> bool {
 /// a readout). This keeps that shape while letting several backends
 /// append, and is idempotent so repeated polls do not grow the string.
 pub fn note_metrics_source(detail: &mut HashMap<String, String>, source: &str) {
-    let entry = detail.entry("Metrics Source".to_string()).or_default();
+    let entry = detail
+        .entry(detail_keys::METRICS_SOURCE.to_string())
+        .or_default();
     if entry.is_empty() {
         *entry = source.to_string();
         return;
@@ -329,7 +332,7 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, metrics: &AdapterMetrics) {
     if let Some(total) = metrics.total_memory {
         gpu.total_memory = total;
         gpu.detail.insert(
-            "Source: Memory".to_string(),
+            detail_keys::SOURCE_MEMORY.to_string(),
             if metrics.memory_is_shared {
                 "DXGI (shared)"
             } else {
@@ -346,14 +349,14 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, metrics: &AdapterMetrics) {
     // would understate a busy GPU by whatever other processes hold.
     if let Some(budget) = metrics.process_budget {
         gpu.detail.insert(
-            "VRAM Budget (this process)".to_string(),
+            detail_keys::VRAM_BUDGET_PROCESS.to_string(),
             format!("{budget} bytes"),
         );
         touched_dxgi = true;
     }
     if let Some(usage) = metrics.process_current_usage {
         gpu.detail.insert(
-            "VRAM Usage (this process)".to_string(),
+            detail_keys::VRAM_USAGE_PROCESS.to_string(),
             format!("{usage} bytes"),
         );
         touched_dxgi = true;
@@ -367,7 +370,7 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, metrics: &AdapterMetrics) {
         // labelling it plain "PDH", which would imply the two numbers
         // are the same kind of quantity.
         gpu.detail.insert(
-            "Source: Memory Used".to_string(),
+            detail_keys::SOURCE_MEMORY_USED.to_string(),
             if metrics.memory_is_shared {
                 "PDH (dedicated carve-out only)"
             } else {
@@ -380,8 +383,10 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, metrics: &AdapterMetrics) {
 
     if let Some(utilization) = metrics.utilization {
         gpu.utilization = utilization;
-        gpu.detail
-            .insert("Source: Utilization".to_string(), "PDH".to_string());
+        gpu.detail.insert(
+            detail_keys::SOURCE_UTILIZATION.to_string(),
+            "PDH".to_string(),
+        );
         touched_pdh = true;
     }
 
@@ -563,9 +568,12 @@ mod tests {
 
     fn blank_gpu() -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("Metrics Source".to_string(), "WMI".to_string());
-        detail.insert("Source: Utilization".to_string(), "unavailable".to_string());
-        detail.insert("Source: Memory".to_string(), "WMI".to_string());
+        detail.insert(detail_keys::METRICS_SOURCE.to_string(), "WMI".to_string());
+        detail.insert(
+            detail_keys::SOURCE_UTILIZATION.to_string(),
+            "unavailable".to_string(),
+        );
+        detail.insert(detail_keys::SOURCE_MEMORY.to_string(), "WMI".to_string());
         GpuInfo {
             uuid: "PCI\\VEN_1002&DEV_744C".to_string(),
             time: String::new(),
@@ -623,8 +631,8 @@ mod tests {
         // represent.
         apply_to_gpu_info(&mut gpu, &metrics(Some(25_769_803_776), None, None));
         assert_eq!(gpu.total_memory, 25_769_803_776);
-        assert_eq!(gpu.detail["Source: Memory"], "DXGI");
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_MEMORY], "DXGI");
+        assert_eq!(gpu.detail[detail_keys::METRICS_SOURCE], "WMI + DXGI");
     }
 
     #[test]
@@ -636,9 +644,9 @@ mod tests {
         );
         assert_eq!(gpu.utilization, 42.5);
         assert_eq!(gpu.used_memory, 2_147_483_648);
-        assert_eq!(gpu.detail["Source: Utilization"], "PDH");
-        assert_eq!(gpu.detail["Source: Memory Used"], "PDH");
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_UTILIZATION], "PDH");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_MEMORY_USED], "PDH");
+        assert_eq!(gpu.detail[detail_keys::METRICS_SOURCE], "WMI + DXGI + PDH");
     }
 
     #[test]
@@ -652,8 +660,8 @@ mod tests {
         apply_to_gpu_info(&mut gpu, &metrics(Some(1_073_741_824), None, None));
         assert_eq!(gpu.total_memory, 1_073_741_824);
         assert_eq!(gpu.utilization, 0.0);
-        assert_eq!(gpu.detail["Source: Utilization"], "unavailable");
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_UTILIZATION], "unavailable");
+        assert_eq!(gpu.detail[detail_keys::METRICS_SOURCE], "WMI + DXGI");
     }
 
     #[test]
@@ -663,16 +671,16 @@ mod tests {
         apply_to_gpu_info(&mut gpu, &m);
         apply_to_gpu_info(&mut gpu, &m);
         apply_to_gpu_info(&mut gpu, &m);
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH");
+        assert_eq!(gpu.detail[detail_keys::METRICS_SOURCE], "WMI + DXGI + PDH");
     }
 
     #[test]
     fn metrics_source_starts_clean_when_absent() {
         let mut detail = HashMap::new();
         note_metrics_source(&mut detail, "DXGI");
-        assert_eq!(detail["Metrics Source"], "DXGI");
+        assert_eq!(detail[detail_keys::METRICS_SOURCE], "DXGI");
         note_metrics_source(&mut detail, "PDH");
-        assert_eq!(detail["Metrics Source"], "DXGI + PDH");
+        assert_eq!(detail[detail_keys::METRICS_SOURCE], "DXGI + PDH");
     }
 
     fn snapshot_with(adapters: Vec<AdapterMetrics>, processes: Vec<ProcessGpuMemory>) -> Snapshot {
@@ -710,7 +718,7 @@ mod tests {
         let index = pair_and_apply(&mut gpus, &Snapshot::default());
         assert!(index.is_empty());
         assert_eq!(gpus[0].total_memory, before);
-        assert_eq!(gpus[0].detail["Metrics Source"], "WMI");
+        assert_eq!(gpus[0].detail[detail_keys::METRICS_SOURCE], "WMI");
     }
 
     #[test]
@@ -730,7 +738,7 @@ mod tests {
         // Second has ordinal 1, which is out of range for a one-adapter
         // snapshot, so it is left alone rather than mis-attributed.
         assert_eq!(gpus[1].total_memory, 4_294_967_295);
-        assert_eq!(gpus[1].detail["Metrics Source"], "WMI");
+        assert_eq!(gpus[1].detail[detail_keys::METRICS_SOURCE], "WMI");
         assert_eq!(index.len(), 1);
     }
 
@@ -792,9 +800,12 @@ mod tests {
 
         // Neither DXGI figure may leak into the device-level number.
         assert_eq!(gpu.used_memory, 0);
-        assert_eq!(gpu.detail["VRAM Budget (this process)"], "7000000000 bytes");
-        assert_eq!(gpu.detail["VRAM Usage (this process)"], "123456 bytes");
-        assert!(!gpu.detail.contains_key("Source: Memory Used"));
+        assert_eq!(
+            gpu.detail[detail_keys::VRAM_BUDGET_PROCESS],
+            "7000000000 bytes"
+        );
+        assert_eq!(gpu.detail[detail_keys::VRAM_USAGE_PROCESS], "123456 bytes");
+        assert!(!gpu.detail.contains_key(detail_keys::SOURCE_MEMORY_USED));
     }
 
     #[test]
@@ -822,7 +833,7 @@ mod tests {
             // An inert layer must leave the WMI baseline exactly as it
             // found it.
             assert_eq!(gpus[0].total_memory, 4_294_967_295);
-            assert_eq!(gpus[0].detail["Metrics Source"], "WMI");
+            assert_eq!(gpus[0].detail[detail_keys::METRICS_SOURCE], "WMI");
         }
     }
 

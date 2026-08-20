@@ -16,6 +16,7 @@
 //! `intel_gpu_linux.rs` to keep that file under the 500-line budget.
 
 use super::*;
+use crate::device::detail_keys;
 use crate::device::readers::intel_gpu_sysfs::MemoryVariant;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -185,29 +186,32 @@ fn get_gpu_info_populates_basic_fields() {
     assert!((g.power_consumption - 150.0).abs() < 0.01);
     assert_eq!(g.utilization, 0.0);
     assert_eq!(
-        g.detail.get("Variant").map(String::as_str),
+        g.detail.get(detail_keys::VARIANT).map(String::as_str),
         Some("Discrete")
     );
-    assert_eq!(g.detail.get("Driver").map(String::as_str), Some("i915"));
+    assert_eq!(
+        g.detail.get(detail_keys::DRIVER).map(String::as_str),
+        Some("i915")
+    );
     // No engine sysfs entries in this fixture -> reader must surface
     // the explanatory note, NOT the obsolete `intel_gpu_top` text.
     assert_eq!(
-        g.detail.get("Utilization").map(String::as_str),
+        g.detail.get(detail_keys::UTILIZATION).map(String::as_str),
         Some("Engine counters unavailable (kernel does not expose engine busy)")
     );
     // The pre-issue-#246 placeholder must not leak back in.
     assert_ne!(
-        g.detail.get("Utilization").map(String::as_str),
+        g.detail.get(detail_keys::UTILIZATION).map(String::as_str),
         Some("Requires intel_gpu_top (perf engine counters)")
     );
     // Architecture / SYCL classification — derived from the resolved
     // marketing name. Arc A770 is Alchemist (SYCL-capable).
     assert_eq!(
-        g.detail.get("Architecture").map(String::as_str),
+        g.detail.get(detail_keys::ARCHITECTURE).map(String::as_str),
         Some("Alchemist (Xe-HPG, A-series)")
     );
     assert_eq!(
-        g.detail.get("SYCL Capable").map(String::as_str),
+        g.detail.get(detail_keys::SYCL_CAPABLE).map(String::as_str),
         Some("Yes")
     );
     // `Metrics Source` advertises which backend produced the metrics.
@@ -217,7 +221,9 @@ fn get_gpu_info_populates_basic_fields() {
     // `"sysfs + Level Zero"` only when an L0 readout carries data —
     // which requires real hardware (issue #248 deferred AC).
     assert_eq!(
-        g.detail.get("Metrics Source").map(String::as_str),
+        g.detail
+            .get(detail_keys::METRICS_SOURCE)
+            .map(String::as_str),
         Some("sysfs (engine counters)")
     );
     // The Intel reader populates NVIDIA-only fields with None / empty
@@ -246,7 +252,7 @@ fn get_gpu_info_reads_xe_temp2() {
     assert_eq!(
         info[0]
             .detail
-            .get("Source: Temperature")
+            .get(detail_keys::SOURCE_TEMPERATURE)
             .map(String::as_str),
         Some("hwmon")
     );
@@ -271,11 +277,17 @@ fn get_gpu_info_publishes_fan_speed_as_field_and_detail() {
     assert_eq!(info.len(), 1);
     assert_eq!(info[0].fan_speed_rpm, Some(1730));
     assert_eq!(
-        info[0].detail.get("Fan Speed").map(String::as_str),
+        info[0]
+            .detail
+            .get(detail_keys::FAN_SPEED)
+            .map(String::as_str),
         Some("1730 RPM")
     );
     assert_eq!(
-        info[0].detail.get("Source: Fan").map(String::as_str),
+        info[0]
+            .detail
+            .get(detail_keys::SOURCE_FAN)
+            .map(String::as_str),
         Some("hwmon")
     );
 }
@@ -293,9 +305,12 @@ fn get_gpu_info_leaves_fan_speed_unset_without_a_tachometer() {
 
     assert_eq!(info.len(), 1);
     assert!(info[0].fan_speed_rpm.is_none());
-    assert!(!info[0].detail.contains_key("Fan Speed"));
+    assert!(!info[0].detail.contains_key(detail_keys::FAN_SPEED));
     assert_eq!(
-        info[0].detail.get("Source: Fan").map(String::as_str),
+        info[0]
+            .detail
+            .get(detail_keys::SOURCE_FAN)
+            .map(String::as_str),
         Some("unavailable")
     );
 }
@@ -320,7 +335,10 @@ fn get_gpu_info_clamps_a_garbled_fan_reading_before_either_write() {
     assert_eq!(info.len(), 1);
     assert_eq!(info[0].fan_speed_rpm, Some(MAX_GPU_FAN_RPM));
     assert_eq!(
-        info[0].detail.get("Fan Speed").map(String::as_str),
+        info[0]
+            .detail
+            .get(detail_keys::FAN_SPEED)
+            .map(String::as_str),
         Some(format!("{MAX_GPU_FAN_RPM} RPM").as_str())
     );
 }
@@ -337,20 +355,26 @@ fn get_gpu_info_integrated_reports_zero_memory() {
     assert_eq!(info[0].total_memory, 0);
     assert_eq!(info[0].used_memory, 0);
     assert_eq!(
-        info[0].detail.get("Variant").map(String::as_str),
+        info[0].detail.get(detail_keys::VARIANT).map(String::as_str),
         Some("Integrated")
     );
     assert!(
-        info[0].detail.contains_key("Memory"),
+        info[0].detail.contains_key(detail_keys::MEMORY),
         "integrated GPUs should explain the shared-memory situation"
     );
     // Meteor Lake / Core Ultra iGPU is Xe-LPG and SYCL-capable.
     assert_eq!(
-        info[0].detail.get("Architecture").map(String::as_str),
+        info[0]
+            .detail
+            .get(detail_keys::ARCHITECTURE)
+            .map(String::as_str),
         Some("Xe-LPG (Meteor Lake)")
     );
     assert_eq!(
-        info[0].detail.get("SYCL Capable").map(String::as_str),
+        info[0]
+            .detail
+            .get(detail_keys::SYCL_CAPABLE)
+            .map(String::as_str),
         Some("Yes")
     );
 }
@@ -375,12 +399,12 @@ fn get_gpu_info_seeding_emits_seeding_note_when_engines_exist() {
     let g = &info[0];
     assert_eq!(g.utilization, 0.0);
     assert_eq!(
-        g.detail.get("Utilization").map(String::as_str),
+        g.detail.get(detail_keys::UTILIZATION).map(String::as_str),
         Some("Engine counters seeded (utilization available next refresh)")
     );
     // No per-engine entries yet — they appear from the *second* call.
     assert!(
-        g.detail.keys().all(|k| !k.starts_with("Engine: ")),
+        g.detail.keys().all(|k| !k.starts_with("engine_")),
         "seeding call must not produce Engine: detail keys yet, got: {:?}",
         g.detail.keys().collect::<Vec<_>>()
     );
@@ -420,16 +444,16 @@ fn get_gpu_info_second_call_surfaces_engine_percent() {
     );
     // Per-engine detail entry must exist for the render engine.
     assert!(
-        g.detail.contains_key("Engine: render"),
+        g.detail.contains_key(&detail_keys::engine("render")),
         "missing Engine: render entry. detail = {:?}",
         g.detail
     );
     // The static `Utilization` note is removed once live data is
     // available.
     assert!(
-        !g.detail.contains_key("Utilization"),
+        !g.detail.contains_key(detail_keys::UTILIZATION),
         "Utilization note should be cleared when engine data is live, got: {:?}",
-        g.detail.get("Utilization")
+        g.detail.get(detail_keys::UTILIZATION)
     );
 }
 

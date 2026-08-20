@@ -55,6 +55,7 @@ use super::aggregator::DataAggregator;
 use super::strategy::{
     CollectionConfig, CollectionData, CollectionError, CollectionResult, DataCollectionStrategy,
 };
+use crate::device::detail_keys;
 
 const NATIVE_SNAPSHOT_CMD: &str = "all-smi snapshot --format json --include gpu,cpu,memory,chassis";
 const NATIVE_VERSION_CMD: &str = "all-smi --version";
@@ -501,7 +502,7 @@ fn parse_native_snapshot(
         gpu.hostname = hostname.to_string();
         gpu.time = timestamp.to_string();
         gpu.detail
-            .insert("transport".to_string(), "ssh/native".to_string());
+            .insert(detail_keys::TRANSPORT.to_string(), "ssh/native".to_string());
     }
     Ok(gpus)
 }

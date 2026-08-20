@@ -15,6 +15,7 @@
 use crate::device::GpuReader;
 use crate::device::common::constants::BYTES_PER_MB;
 use crate::device::common::{execute_command_default, parse_csv_line};
+use crate::device::detail_keys;
 use crate::device::process_list::{get_all_processes, merge_gpu_processes};
 use crate::device::readers::common_cache::{DetailBuilder, DeviceStaticInfo, MAX_DEVICES};
 use crate::device::readers::nvidia_hardware::{
@@ -30,6 +31,7 @@ use nvml_wrapper::enums::device::{DeviceArchitecture, UsedGpuMemory};
 use nvml_wrapper::error::NvmlError;
 use nvml_wrapper::{Nvml, cuda_driver_version_major, cuda_driver_version_minor};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 // Global status for NVML error messages
@@ -632,11 +634,25 @@ fn create_base_process_info(
     }
 }
 
+// `Display` adapter for NVML enums.
+//
+// NVML's wrapper types derive only `Debug`, and the orphan rule stops us from
+// implementing `Display` on them here. This newtype forwards to the `Debug`
+// impl, so the detail map renders exactly what `{:?}` used to produce without
+// a `Debug` format specifier at the call site.
+struct DebugDisplay<T: fmt::Debug>(T);
+
+impl<T: fmt::Debug> fmt::Display for DebugDisplay<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
 // Macros to reduce boilerplate
 macro_rules! add_detail {
     ($detail:expr_2021, $result:expr_2021, $key:expr_2021) => {
         if let Ok(value) = $result {
-            $detail.insert($key.to_string(), format!("{value:?}"));
+            $detail.insert($key.to_string(), format!("{value}"));
         }
     };
 }
@@ -656,59 +672,82 @@ fn create_device_detail(
     cuda_version: &str,
 ) -> HashMap<String, String> {
     let builder = DetailBuilder::new()
-        .insert("Driver Version", driver_version)
-        .insert("CUDA Version", cuda_version)
+        .insert(detail_keys::DRIVER_VERSION, driver_version)
+        .insert(detail_keys::CUDA_VERSION, cuda_version)
         // Add unified AI acceleration library labels
-        .insert("lib_name", "CUDA")
-        .insert("lib_version", cuda_version);
+        .insert(detail_keys::LIB_NAME, "CUDA")
+        .insert(detail_keys::LIB_VERSION, cuda_version);
 
     // Add all device details using helper macros
     let mut detail = builder.build();
-    add_detail!(detail, device.brand(), "Brand");
-    add_detail!(detail, device.architecture(), "architecture");
+    add_detail!(detail, device.brand().map(DebugDisplay), detail_keys::BRAND);
+    add_detail!(detail, device.architecture(), detail_keys::ARCHITECTURE);
 
     let mem_total = device.memory_info().map(|m| m.total).unwrap_or(0);
     let uma = is_uma_device_with_mem(device, mem_total);
 
     // Suppress PCIe metrics for UMA devices — they use internal interconnect
     if uma {
-        detail.insert("Memory Type".to_string(), "Unified".to_string());
-        detail.insert("Interconnect".to_string(), "Integrated".to_string());
+        detail.insert(detail_keys::MEMORY_TYPE.to_string(), "Unified".to_string());
+        detail.insert(
+            detail_keys::INTERCONNECT.to_string(),
+            "Integrated".to_string(),
+        );
     } else {
-        add_detail!(detail, device.current_pcie_link_gen(), "PCIe Generation");
+        add_detail!(
+            detail,
+            device.current_pcie_link_gen(),
+            detail_keys::PCIE_GENERATION
+        );
         add_detail_fmt!(
             detail,
             device.current_pcie_link_width(),
-            "PCIe Width",
+            detail_keys::PCIE_LINK_WIDTH,
             "x{}"
         );
-        add_detail!(detail, device.max_pcie_link_gen(), "pcie_gen_max");
-        add_detail!(detail, device.max_pcie_link_width(), "pcie_width_max");
+        add_detail!(
+            detail,
+            device.max_pcie_link_gen(),
+            detail_keys::PCIE_GEN_MAX
+        );
+        add_detail!(
+            detail,
+            device.max_pcie_link_width(),
+            detail_keys::PCIE_WIDTH_MAX
+        );
     }
 
-    add_detail!(detail, device.compute_mode(), "compute_mode");
-    add_detail!(detail, device.performance_state(), "performance_state");
+    add_detail!(
+        detail,
+        device.compute_mode().map(DebugDisplay),
+        detail_keys::COMPUTE_MODE
+    );
+    add_detail!(
+        detail,
+        device.performance_state().map(DebugDisplay),
+        detail_keys::PERFORMANCE_STATE
+    );
 
     // Power limits
     if let Ok(power_limit) = device.power_management_limit() {
         detail.insert(
-            "power_limit_current".to_string(),
+            detail_keys::POWER_LIMIT_CURRENT.to_string(),
             format!("{:.2}", power_limit as f64 / 1000.0),
         );
     }
     if let Ok(power_limit_default) = device.power_management_limit_default() {
         detail.insert(
-            "power_limit_default".to_string(),
+            detail_keys::POWER_LIMIT_DEFAULT.to_string(),
             format!("{:.2}", power_limit_default as f64 / 1000.0),
         );
     }
     if let Ok(constraints) = device.power_management_limit_constraints() {
         detail.insert(
-            "power_limit_min".to_string(),
+            detail_keys::POWER_LIMIT_MIN.to_string(),
             format!("{:.2}", constraints.min_limit as f64 / 1000.0),
         );
         detail.insert(
-            "power_limit_max".to_string(),
+            detail_keys::POWER_LIMIT_MAX.to_string(),
             format!("{:.2}", constraints.max_limit as f64 / 1000.0),
         );
     }
@@ -718,18 +757,18 @@ fn create_device_detail(
     add_detail!(
         detail,
         device.max_customer_boost_clock(Clock::Graphics),
-        "clock_graphics_max"
+        detail_keys::CLOCK_GRAPHICS_MAX
     );
     add_detail!(
         detail,
         device.max_customer_boost_clock(Clock::Memory),
-        "clock_memory_max"
+        detail_keys::CLOCK_MEMORY_MAX
     );
 
     // ECC mode
     if let Ok(ecc_enabled) = device.is_ecc_enabled() {
         detail.insert(
-            "ecc_mode_current".to_string(),
+            detail_keys::ECC_MODE_CURRENT.to_string(),
             if ecc_enabled.currently_enabled {
                 "Enabled"
             } else {
@@ -739,7 +778,7 @@ fn create_device_detail(
         );
         if ecc_enabled.currently_enabled != ecc_enabled.pending_enabled {
             detail.insert(
-                "ecc_mode_pending".to_string(),
+                detail_keys::ECC_MODE_PENDING.to_string(),
                 if ecc_enabled.pending_enabled {
                     "Enabled"
                 } else {
@@ -753,19 +792,19 @@ fn create_device_detail(
     // MIG mode
     if let Ok(mig_mode) = device.mig_mode() {
         detail.insert(
-            "mig_mode_current".to_string(),
+            detail_keys::MIG_MODE_CURRENT.to_string(),
             format!("{:?}", mig_mode.current),
         );
         if mig_mode.current != mig_mode.pending {
             detail.insert(
-                "mig_mode_pending".to_string(),
+                detail_keys::MIG_MODE_PENDING.to_string(),
                 format!("{:?}", mig_mode.pending),
             );
         }
     }
 
     // VBIOS version
-    add_detail!(detail, device.vbios_version(), "vbios_version");
+    add_detail!(detail, device.vbios_version(), detail_keys::VBIOS_VERSION);
 
     detail
 }
@@ -800,8 +839,11 @@ fn get_gpu_info_nvidia_smi() -> Vec<GpuInfo> {
                     let (sys_total, sys_used) = get_system_memory_for_uma();
                     total_memory = sys_total;
                     used_memory = sys_used;
-                    detail.insert("Memory Type".to_string(), "Unified".to_string());
-                    detail.insert("Interconnect".to_string(), "Integrated".to_string());
+                    detail.insert(detail_keys::MEMORY_TYPE.to_string(), "Unified".to_string());
+                    detail.insert(
+                        detail_keys::INTERCONNECT.to_string(),
+                        "Integrated".to_string(),
+                    );
                 }
 
                 Some(GpuInfo {

@@ -16,6 +16,7 @@ use super::common::CommonNpuExporter;
 use super::exporter_trait::{CommonNpuMetrics, NpuExporter};
 use crate::api::metrics::MetricBuilder;
 use crate::device::GpuInfo;
+use crate::device::detail_keys;
 
 /// Tenstorrent NPU-specific metric exporter
 pub struct TenstorrentExporter {
@@ -31,7 +32,7 @@ impl TenstorrentExporter {
 
     fn export_firmware(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
         // ARC firmware
-        if let Some(arc_fw) = info.detail.get("arc_fw_version") {
+        if let Some(arc_fw) = info.detail.get(detail_keys::ARC_FW_VERSION) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -49,7 +50,7 @@ impl TenstorrentExporter {
         }
 
         // Ethernet firmware
-        if let Some(eth_fw) = info.detail.get("eth_fw_version") {
+        if let Some(eth_fw) = info.detail.get(detail_keys::ETH_FW_VERSION) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -67,7 +68,7 @@ impl TenstorrentExporter {
         }
 
         // Firmware date
-        if let Some(fw_date) = info.detail.get("fw_date") {
+        if let Some(fw_date) = info.detail.get(detail_keys::FW_DATE) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -85,7 +86,7 @@ impl TenstorrentExporter {
         }
 
         // DDR firmware
-        if let Some(ddr_fw) = info.detail.get("ddr_fw_version") {
+        if let Some(ddr_fw) = info.detail.get(detail_keys::DDR_FW_VERSION) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -103,7 +104,7 @@ impl TenstorrentExporter {
         }
 
         // SPI Boot ROM firmware
-        if let Some(spi_fw) = info.detail.get("spibootrom_fw_version") {
+        if let Some(spi_fw) = info.detail.get(detail_keys::SPIBOOTROM_FW_VERSION) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -134,7 +135,7 @@ impl TenstorrentExporter {
         ];
 
         // ASIC temperature (main chip temperature)
-        if let Some(asic_temp) = info.detail.get("asic_temperature")
+        if let Some(asic_temp) = info.detail.get(detail_keys::ASIC_TEMPERATURE)
             && let Some(temp) = CommonNpuExporter::parse_numeric_value(asic_temp)
         {
             builder
@@ -151,7 +152,7 @@ impl TenstorrentExporter {
         }
 
         // Voltage regulator temperature
-        if let Some(vreg_temp) = info.detail.get("vreg_temperature")
+        if let Some(vreg_temp) = info.detail.get(detail_keys::VREG_TEMPERATURE)
             && let Some(temp) = CommonNpuExporter::parse_numeric_value(vreg_temp)
         {
             builder
@@ -168,7 +169,7 @@ impl TenstorrentExporter {
         }
 
         // Inlet temperature
-        if let Some(inlet_temp) = info.detail.get("inlet_temperature")
+        if let Some(inlet_temp) = info.detail.get(detail_keys::INLET_TEMPERATURE)
             && let Some(temp) = CommonNpuExporter::parse_numeric_value(inlet_temp)
         {
             builder
@@ -185,7 +186,7 @@ impl TenstorrentExporter {
         }
 
         // Outlet temperatures
-        if let Some(outlet_temp1) = info.detail.get("outlet_temperature1")
+        if let Some(outlet_temp1) = info.detail.get(detail_keys::OUTLET_TEMPERATURE1)
             && let Some(temp) = CommonNpuExporter::parse_numeric_value(outlet_temp1)
         {
             builder
@@ -201,7 +202,7 @@ impl TenstorrentExporter {
                 );
         }
 
-        if let Some(outlet_temp2) = info.detail.get("outlet_temperature2")
+        if let Some(outlet_temp2) = info.detail.get(detail_keys::OUTLET_TEMPERATURE2)
             && let Some(temp) = CommonNpuExporter::parse_numeric_value(outlet_temp2)
         {
             builder
@@ -227,7 +228,7 @@ impl TenstorrentExporter {
         ];
 
         // AI clock
-        if let Some(aiclk) = info.detail.get("aiclk_mhz")
+        if let Some(aiclk) = info.detail.get(detail_keys::AICLK_MHZ)
             && let Some(freq) = CommonNpuExporter::parse_numeric_value(aiclk)
         {
             builder
@@ -237,7 +238,7 @@ impl TenstorrentExporter {
         }
 
         // AXI clock
-        if let Some(axiclk) = info.detail.get("axiclk_mhz")
+        if let Some(axiclk) = info.detail.get(detail_keys::AXICLK_MHZ)
             && let Some(freq) = CommonNpuExporter::parse_numeric_value(axiclk)
         {
             builder
@@ -250,7 +251,7 @@ impl TenstorrentExporter {
         }
 
         // ARC clock
-        if let Some(arcclk) = info.detail.get("arcclk_mhz")
+        if let Some(arcclk) = info.detail.get(detail_keys::ARCCLK_MHZ)
             && let Some(freq) = CommonNpuExporter::parse_numeric_value(arcclk)
         {
             builder
@@ -272,7 +273,7 @@ impl TenstorrentExporter {
         ];
 
         // Voltage
-        if let Some(voltage) = info.detail.get("voltage")
+        if let Some(voltage) = info.detail.get(detail_keys::VOLTAGE)
             && let Some(v) = CommonNpuExporter::parse_numeric_value(voltage)
         {
             builder
@@ -282,7 +283,7 @@ impl TenstorrentExporter {
         }
 
         // Current
-        if let Some(current) = info.detail.get("current")
+        if let Some(current) = info.detail.get(detail_keys::CURRENT)
             && let Some(c) = CommonNpuExporter::parse_numeric_value(current)
         {
             builder
@@ -292,7 +293,7 @@ impl TenstorrentExporter {
         }
 
         // Power limits
-        if let Some(tdp_limit) = info.detail.get("power_limit_tdp")
+        if let Some(tdp_limit) = info.detail.get(detail_keys::POWER_LIMIT_TDP)
             && let Some(power) = CommonNpuExporter::parse_numeric_value(tdp_limit)
         {
             builder
@@ -308,7 +309,7 @@ impl TenstorrentExporter {
                 );
         }
 
-        if let Some(tdc_limit) = info.detail.get("power_limit_tdc")
+        if let Some(tdc_limit) = info.detail.get(detail_keys::POWER_LIMIT_TDC)
             && let Some(current) = CommonNpuExporter::parse_numeric_value(tdc_limit)
         {
             builder
@@ -325,7 +326,7 @@ impl TenstorrentExporter {
         }
 
         // TDP limit (new field from enhanced metrics)
-        if let Some(tdp_limit) = info.detail.get("tdp_limit")
+        if let Some(tdp_limit) = info.detail.get(detail_keys::TDP_LIMIT)
             && let Some(power) = CommonNpuExporter::parse_numeric_value(tdp_limit)
         {
             builder
@@ -335,7 +336,7 @@ impl TenstorrentExporter {
         }
 
         // TDC limit (new field from enhanced metrics)
-        if let Some(tdc_limit) = info.detail.get("tdc_limit")
+        if let Some(tdc_limit) = info.detail.get(detail_keys::TDC_LIMIT)
             && let Some(current) = CommonNpuExporter::parse_numeric_value(tdc_limit)
         {
             builder
@@ -352,7 +353,7 @@ impl TenstorrentExporter {
         }
 
         // Thermal limit
-        if let Some(thermal_limit) = info.detail.get("thermal_limit")
+        if let Some(thermal_limit) = info.detail.get(detail_keys::THERMAL_LIMIT)
             && let Some(temp) = CommonNpuExporter::parse_numeric_value(thermal_limit)
         {
             builder
@@ -369,7 +370,7 @@ impl TenstorrentExporter {
         }
 
         // Heartbeat
-        if let Some(heartbeat) = info.detail.get("heartbeat")
+        if let Some(heartbeat) = info.detail.get(detail_keys::HEARTBEAT)
             && let Some(hb) = CommonNpuExporter::parse_numeric_value(heartbeat)
         {
             builder
@@ -379,7 +380,7 @@ impl TenstorrentExporter {
         }
 
         // Raw power consumption in watts
-        if let Some(power_watts) = info.detail.get("power_watts")
+        if let Some(power_watts) = info.detail.get(detail_keys::POWER_WATTS)
             && let Some(power) = CommonNpuExporter::parse_numeric_value(power_watts)
         {
             builder
@@ -401,7 +402,7 @@ impl TenstorrentExporter {
         ];
 
         // PCIe status
-        if let Some(pcie_status) = info.detail.get("pcie_status") {
+        if let Some(pcie_status) = info.detail.get(detail_keys::PCIE_STATUS) {
             let status_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -419,7 +420,7 @@ impl TenstorrentExporter {
         }
 
         // Ethernet status
-        if let Some(eth_status0) = info.detail.get("eth_status0") {
+        if let Some(eth_status0) = info.detail.get(detail_keys::ETH_STATUS0) {
             let status_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -437,7 +438,7 @@ impl TenstorrentExporter {
                 .metric("all_smi_tenstorrent_eth_status_info", &status_labels, 1);
         }
 
-        if let Some(eth_status1) = info.detail.get("eth_status1") {
+        if let Some(eth_status1) = info.detail.get(detail_keys::ETH_STATUS1) {
             let status_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -456,7 +457,7 @@ impl TenstorrentExporter {
         }
 
         // DDR status (as numeric register value)
-        if let Some(ddr_status) = info.detail.get("ddr_status")
+        if let Some(ddr_status) = info.detail.get(detail_keys::DDR_STATUS)
             && let Some(status_val) = CommonNpuExporter::parse_hex_register(ddr_status)
         {
             builder
@@ -469,7 +470,7 @@ impl TenstorrentExporter {
         }
 
         // ARC health counters
-        if let Some(arc0_health) = info.detail.get("arc0_health")
+        if let Some(arc0_health) = info.detail.get(detail_keys::ARC0_HEALTH)
             && let Some(health) = CommonNpuExporter::parse_numeric_value(arc0_health)
         {
             builder
@@ -478,7 +479,7 @@ impl TenstorrentExporter {
                 .metric("all_smi_tenstorrent_arc0_health", &base_labels, health);
         }
 
-        if let Some(arc3_health) = info.detail.get("arc3_health")
+        if let Some(arc3_health) = info.detail.get(detail_keys::ARC3_HEALTH)
             && let Some(health) = CommonNpuExporter::parse_numeric_value(arc3_health)
         {
             builder
@@ -488,7 +489,7 @@ impl TenstorrentExporter {
         }
 
         // Faults register
-        if let Some(faults) = info.detail.get("faults")
+        if let Some(faults) = info.detail.get(detail_keys::FAULTS)
             && let Some(faults_val) = CommonNpuExporter::parse_hex_register(faults)
         {
             builder
@@ -498,7 +499,7 @@ impl TenstorrentExporter {
         }
 
         // Throttler state
-        if let Some(throttler) = info.detail.get("throttler")
+        if let Some(throttler) = info.detail.get(detail_keys::THROTTLER)
             && let Some(throttler_val) = CommonNpuExporter::parse_hex_register(throttler)
         {
             builder
@@ -511,7 +512,7 @@ impl TenstorrentExporter {
         }
 
         // Fan metrics
-        if let Some(fan_speed) = info.detail.get("fan_speed")
+        if let Some(fan_speed) = info.detail.get(detail_keys::FAN_SPEED)
             && let Some(speed) = CommonNpuExporter::parse_numeric_value(fan_speed)
         {
             builder
@@ -523,7 +524,7 @@ impl TenstorrentExporter {
                 .metric("all_smi_tenstorrent_fan_speed_percent", &base_labels, speed);
         }
 
-        if let Some(fan_rpm) = info.detail.get("fan_rpm")
+        if let Some(fan_rpm) = info.detail.get(detail_keys::FAN_RPM)
             && let Some(rpm) = CommonNpuExporter::parse_numeric_value(fan_rpm)
         {
             builder
@@ -535,7 +536,7 @@ impl TenstorrentExporter {
 
     fn export_board_info(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
         // Board type and architecture
-        if let Some(board_type) = info.detail.get("board_type") {
+        if let Some(board_type) = info.detail.get(detail_keys::BOARD_TYPE) {
             let arch = if info.name.contains("Grayskull") {
                 "grayskull"
             } else if info.name.contains("Wormhole") {
@@ -548,7 +549,7 @@ impl TenstorrentExporter {
 
             let board_id = info
                 .detail
-                .get("board_id")
+                .get(detail_keys::BOARD_ID)
                 .map(|s| s.as_str())
                 .unwrap_or("");
 
@@ -571,7 +572,7 @@ impl TenstorrentExporter {
         }
 
         // Collection method
-        if let Some(method) = info.detail.get("collection_method") {
+        if let Some(method) = info.detail.get(detail_keys::COLLECTION_METHOD) {
             let method_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -602,7 +603,7 @@ impl TenstorrentExporter {
         ];
 
         // PCIe address
-        if let Some(pcie_addr) = info.detail.get("pcie_address") {
+        if let Some(pcie_addr) = info.detail.get(detail_keys::PCIE_ADDRESS) {
             let pcie_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -620,8 +621,8 @@ impl TenstorrentExporter {
         }
 
         // PCIe vendor and device ID
-        if let Some(vendor_id) = info.detail.get("pcie_vendor_id")
-            && let Some(device_id) = info.detail.get("pcie_device_id")
+        if let Some(vendor_id) = info.detail.get(detail_keys::PCIE_VENDOR_ID)
+            && let Some(device_id) = info.detail.get(detail_keys::PCIE_DEVICE_ID)
         {
             let pcie_labels = [
                 ("npu", info.name.as_str()),
@@ -641,7 +642,7 @@ impl TenstorrentExporter {
         }
 
         // PCIe generation
-        if let Some(pcie_gen) = info.detail.get("pcie_link_gen")
+        if let Some(pcie_gen) = info.detail.get(detail_keys::PCIE_LINK_GEN)
             && let Some(gen_str) = pcie_gen.strip_prefix("Gen")
             && let Some(generation) = CommonNpuExporter::parse_numeric_value(gen_str)
         {
@@ -656,7 +657,7 @@ impl TenstorrentExporter {
         }
 
         // PCIe width
-        if let Some(pcie_width) = info.detail.get("pcie_link_width")
+        if let Some(pcie_width) = info.detail.get(detail_keys::PCIE_LINK_WIDTH)
             && let Some(width_str) = pcie_width.strip_prefix("x")
             && let Some(width) = CommonNpuExporter::parse_numeric_value(width_str)
         {
@@ -667,7 +668,7 @@ impl TenstorrentExporter {
         }
 
         // DRAM speed
-        if let Some(dram_speed) = info.detail.get("dram_speed") {
+        if let Some(dram_speed) = info.detail.get(detail_keys::DRAM_SPEED) {
             let dram_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),

@@ -17,25 +17,26 @@
 //! Mirrors [`super::amd_windows`] closely — both readers query
 //! `Win32_VideoController` and fill the same defensive `GpuInfo`
 //! template. The only differences are the vendor / family filter and a
-//! discrete-vs-integrated heuristic surfaced in `detail["Variant"]`.
+//! discrete-vs-integrated heuristic surfaced in `detail[detail_keys::VARIANT]`.
 //!
 //! ## WMI-only baseline limitations
 //!
 //! Detailed metrics (utilization, temperature, fine-grained power) are
 //! **not** available through WMI for Intel client GPUs. The WMI-only
 //! baseline therefore returns `0` for those fields and writes a
-//! `detail["Note"]` entry that points operators at Level Zero.
+//! `detail[detail_keys::NOTE]` entry that points operators at Level Zero.
 //!
 //! Issue #248 added an opt-in Level Zero augmentation behind the
 //! `level_zero` Cargo feature. When the build includes the feature
 //! AND the L0 loader (`ze_loader.dll`) is present at runtime, the
 //! augmentation overwrites the WMI zeros for `GpuInfo.utilization`
 //! and `GpuInfo.power_consumption` and flips
-//! `detail["Metrics Source"]` from `"WMI"` to `"WMI + Level Zero"`.
+//! `detail[detail_keys::METRICS_SOURCE]` from `"WMI"` to `"WMI + Level Zero"`.
 //! Without the feature or the runtime the reader behaves exactly as
 //! before — there is no regression for hosts that lack either.
 
 use crate::device::GpuReader;
+use crate::device::detail_keys;
 use crate::device::readers::intel_gpu_names::classify_intel_architecture;
 use crate::device::types::{GpuInfo, ProcessInfo};
 use crate::utils::get_hostname;
@@ -162,19 +163,19 @@ impl IntelWindowsGpuReader {
 
                     let mut detail = HashMap::new();
                     if let Some(ref driver) = controller.driver_version {
-                        detail.insert("Driver Version".to_string(), driver.clone());
+                        detail.insert(detail_keys::DRIVER_VERSION.to_string(), driver.clone());
                     }
                     if let Some(ref processor) = controller.video_processor {
-                        detail.insert("Video Processor".to_string(), processor.clone());
+                        detail.insert(detail_keys::VIDEO_PROCESSOR.to_string(), processor.clone());
                     }
                     if let Some(ref status) = controller.status {
-                        detail.insert("Status".to_string(), status.clone());
+                        detail.insert(detail_keys::STATUS.to_string(), status.clone());
                     }
                     if let Some(ref dac_type) = controller.adapter_d_a_c_type {
-                        detail.insert("DAC Type".to_string(), dac_type.clone());
+                        detail.insert(detail_keys::DAC_TYPE.to_string(), dac_type.clone());
                     }
                     detail.insert(
-                        "Variant".to_string(),
+                        detail_keys::VARIANT.to_string(),
                         classify_intel_variant(&name).to_string(),
                     );
                     // Architecture / SYCL classification — shared with
@@ -184,9 +185,9 @@ impl IntelWindowsGpuReader {
                     // accelerator picker, llama.cpp SYCL backend, etc.)
                     // on both Linux and Windows.
                     let arch = classify_intel_architecture(&name);
-                    detail.insert("Architecture".to_string(), arch.label().to_string());
+                    detail.insert(detail_keys::ARCHITECTURE.to_string(), arch.label().to_string());
                     detail.insert(
-                        "SYCL Capable".to_string(),
+                        detail_keys::SYCL_CAPABLE.to_string(),
                         arch.sycl_capable_label().to_string(),
                     );
                     // `Metrics Source` advertises which backend
@@ -197,22 +198,22 @@ impl IntelWindowsGpuReader {
                     // retained for compatibility with downstream
                     // consumers but conveys the same meaning.
                     detail.insert(
-                        "Metrics Source".to_string(),
+                        detail_keys::METRICS_SOURCE.to_string(),
                         "WMI".to_string(),
                     );
                     detail.insert(
-                        "Note".to_string(),
+                        detail_keys::NOTE.to_string(),
                         "Detailed metrics require Level Zero / xpu-smi".to_string(),
                     );
-                    detail.insert("Source: Utilization".to_string(), "unavailable".to_string());
-                    detail.insert("Source: Temperature".to_string(), "unavailable".to_string());
-                    detail.insert("Source: Power".to_string(), "unavailable".to_string());
-                    detail.insert("Source: Frequency".to_string(), "unavailable".to_string());
+                    detail.insert(detail_keys::SOURCE_UTILIZATION.to_string(), "unavailable".to_string());
+                    detail.insert(detail_keys::SOURCE_TEMPERATURE.to_string(), "unavailable".to_string());
+                    detail.insert(detail_keys::SOURCE_POWER.to_string(), "unavailable".to_string());
+                    detail.insert(detail_keys::SOURCE_FREQUENCY.to_string(), "unavailable".to_string());
                     detail.insert(
-                        "Source: Memory".to_string(),
+                        detail_keys::SOURCE_MEMORY.to_string(),
                         if total_memory > 0 { "WMI" } else { "unavailable" }.to_string(),
                     );
-                    detail.insert("Source: Fan".to_string(), "unavailable".to_string());
+                    detail.insert(detail_keys::SOURCE_FAN.to_string(), "unavailable".to_string());
 
                     gpu_list.push(GpuInfo {
                         uuid,

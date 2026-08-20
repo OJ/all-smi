@@ -56,6 +56,7 @@ pub mod hlsmi;
 /* Refactored modules */
 pub mod common;
 pub mod container_utils;
+pub mod detail_keys;
 pub mod platform_detection;
 pub mod process_list;
 pub mod process_utils;

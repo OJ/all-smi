@@ -24,6 +24,7 @@
 //! - Additional metrics (actual temperature, system power)
 
 use crate::device::common::command_executor::execute_command_default;
+use crate::device::detail_keys;
 use crate::device::macos_native::{
     NativeMetricsManager, get_native_metrics_manager, initialize_native_metrics_manager,
 };
@@ -103,7 +104,7 @@ impl AppleSiliconNativeGpuReader {
             // Extract gpu_core_count from detail if present
             let gpu_core_count = static_info
                 .detail
-                .get("GPU Core Count")
+                .get(detail_keys::GPU_CORE_COUNT)
                 .and_then(|s| s.parse::<u32>().ok());
             let _ = self.apple_info.set(AppleSiliconInfo { gpu_core_count });
             self.initialized.store(true, Ordering::Release);
@@ -116,11 +117,11 @@ impl AppleSiliconNativeGpuReader {
 
         // Build DeviceStaticInfo using DetailBuilder
         let mut builder = DetailBuilder::new()
-            .insert("gpu_type", "Integrated")
-            .insert_optional("driver_version", driver_version.as_ref());
+            .insert(detail_keys::GPU_TYPE, "Integrated")
+            .insert_optional(detail_keys::DRIVER_VERSION, driver_version.as_ref());
 
         if let Some(count) = gpu_core_count {
-            builder = builder.insert("GPU Core Count", count.to_string());
+            builder = builder.insert(detail_keys::GPU_CORE_COUNT, count.to_string());
         }
 
         let detail = builder.build();
@@ -220,8 +221,14 @@ fn build_gpu_info(
     sample: Option<&NativeSample>,
 ) -> GpuInfo {
     let mut detail = static_info.detail.clone();
-    detail.insert("architecture".to_string(), "Apple Silicon".to_string());
-    detail.insert("api".to_string(), "Native (IOReport/SMC)".to_string());
+    detail.insert(
+        detail_keys::ARCHITECTURE.to_string(),
+        "Apple Silicon".to_string(),
+    );
+    detail.insert(
+        detail_keys::API.to_string(),
+        "Native (IOReport/SMC)".to_string(),
+    );
 
     // Explicit, queryable reason for the omitted series. The value series
     // disappear (Prometheus' own convention for "no data"), but the identity
@@ -229,7 +236,7 @@ fn build_gpu_info(
     // consumer can tell "this Mac has no IOReport" apart from "all-smi is not
     // running" without inspecting the absence pattern.
     detail.insert(
-        "native_metrics".to_string(),
+        detail_keys::NATIVE_METRICS.to_string(),
         if sample.is_some() {
             "available".to_string()
         } else {
@@ -238,34 +245,46 @@ fn build_gpu_info(
     );
 
     if let Some(thermal_level) = sample.and_then(|s| s.thermal_pressure_level.as_ref()) {
-        detail.insert("thermal_pressure".to_string(), thermal_level.clone());
+        detail.insert(
+            detail_keys::THERMAL_PRESSURE.to_string(),
+            thermal_level.clone(),
+        );
     }
 
     // Add combined power (CPU + GPU + ANE) for metrics export
     if let Some(combined_power) = sample.map(|s| s.combined_power_mw) {
-        detail.insert("combined_power_mw".to_string(), combined_power.to_string());
+        detail.insert(
+            detail_keys::COMBINED_POWER_MW.to_string(),
+            combined_power.to_string(),
+        );
     }
 
     // Add temperature metrics from SMC
     let cpu_temp = sample.and_then(|s| s.cpu_temperature);
     let gpu_temp = sample.and_then(|s| s.gpu_temperature);
     if let Some(cpu_t) = cpu_temp {
-        detail.insert("cpu_temperature".to_string(), format!("{cpu_t:.1}"));
+        detail.insert(
+            detail_keys::CPU_TEMPERATURE.to_string(),
+            format!("{cpu_t:.1}"),
+        );
     }
     if let Some(gpu_t) = gpu_temp {
-        detail.insert("gpu_temperature".to_string(), format!("{gpu_t:.1}"));
+        detail.insert(
+            detail_keys::GPU_TEMPERATURE.to_string(),
+            format!("{gpu_t:.1}"),
+        );
     }
 
     // Add unified AI acceleration library labels
-    detail.insert("lib_name".to_string(), "Metal".to_string());
-    if let Some(driver_ver) = static_info.detail.get("driver_version")
+    detail.insert(detail_keys::LIB_NAME.to_string(), "Metal".to_string());
+    if let Some(driver_ver) = static_info.detail.get(detail_keys::DRIVER_VERSION)
         && driver_ver != "Unknown"
     {
         let lib_ver = driver_ver
             .strip_prefix("Metal ")
             .unwrap_or(driver_ver)
             .to_string();
-        detail.insert("lib_version".to_string(), lib_ver);
+        detail.insert(detail_keys::LIB_VERSION.to_string(), lib_ver);
     }
 
     // GPU temperature: Apple Silicon's per-die GPU thermistor keys (Tg*) are
@@ -468,8 +487,8 @@ mod tests {
             "Apple M2 Max GPU".to_string(),
             None,
             DetailBuilder::new()
-                .insert("gpu_type", "Integrated")
-                .insert("driver_version", "Metal 3")
+                .insert(detail_keys::GPU_TYPE, "Integrated")
+                .insert(detail_keys::DRIVER_VERSION, "Metal 3")
                 .build(),
         )
     }
@@ -580,15 +599,17 @@ mod tests {
         assert_eq!(info.gpu_core_count, Some(38));
         assert!(info.total_memory > 0, "unified memory total must survive");
         assert_eq!(
-            info.detail.get("native_metrics").map(String::as_str),
+            info.detail
+                .get(detail_keys::NATIVE_METRICS)
+                .map(String::as_str),
             Some("unavailable"),
             "the identity series must carry the reason for the omission"
         );
         // Values sourced from the dead subscription must not appear at all,
         // not even as a zero-valued detail label.
-        assert!(!info.detail.contains_key("combined_power_mw"));
-        assert!(!info.detail.contains_key("thermal_pressure"));
-        assert!(!info.detail.contains_key("cpu_temperature"));
+        assert!(!info.detail.contains_key(detail_keys::COMBINED_POWER_MW));
+        assert!(!info.detail.contains_key(detail_keys::THERMAL_PRESSURE));
+        assert!(!info.detail.contains_key(detail_keys::CPU_TEMPERATURE));
     }
 
     /// The other half of the contract: a genuine zero from a healthy
@@ -603,7 +624,9 @@ mod tests {
         assert_eq!(info.frequency_reading(), Some(338));
         assert_eq!(info.temperature_reading(), Some(46));
         assert_eq!(
-            info.detail.get("native_metrics").map(String::as_str),
+            info.detail
+                .get(detail_keys::NATIVE_METRICS)
+                .map(String::as_str),
             Some("available")
         );
     }

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::device::detail_keys;
 use crate::device::types::{GpuInfo, MAX_GPU_FAN_RPM};
 use std::collections::HashMap;
 
@@ -58,14 +59,14 @@ fn linux_fresh_sysman_overwrites_fields() {
     gpu.frequency = 1900;
     gpu.power_consumption = 80.0;
     gpu.detail.insert(
-        "Metrics Source".to_string(),
+        detail_keys::METRICS_SOURCE.to_string(),
         "sysfs (engine counters)".to_string(),
     );
     // Mirror what the Linux sysfs baseline actually produces: the typed
     // field and the detail string are written together from one hwmon read.
     gpu.fan_speed_rpm = Some(1400);
     gpu.detail
-        .insert("Fan Speed".to_string(), "1400 RPM".to_string());
+        .insert(detail_keys::FAN_SPEED.to_string(), "1400 RPM".to_string());
 
     let readout = LevelZeroReadout {
         engines: vec![("compute (XMX)", 80.0), ("render", 30.0)],
@@ -94,19 +95,23 @@ fn linux_fresh_sysman_overwrites_fields() {
     assert_eq!(gpu.used_memory, 4 * 1024 * 1024 * 1024);
     assert_eq!(gpu.total_memory, 12 * 1024 * 1024 * 1024);
     assert_eq!(
-        gpu.detail.get("Power (L0)").map(String::as_str),
+        gpu.detail.get(detail_keys::POWER_L0).map(String::as_str),
         Some("120.50 W")
     );
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail
+            .get(detail_keys::METRICS_SOURCE)
+            .map(String::as_str),
         Some("sysfs + Level Zero Sysman")
     );
     assert_eq!(
-        gpu.detail.get("Source: Utilization").map(String::as_str),
+        gpu.detail
+            .get(detail_keys::SOURCE_UTILIZATION)
+            .map(String::as_str),
         Some("Level Zero Sysman")
     );
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(detail_keys::FAN_SPEED).map(String::as_str),
         Some("1400 RPM"),
         "Linux hwmon fan must keep priority over L0 fan"
     );
@@ -156,7 +161,7 @@ fn shared_memory_does_not_fabricate_vram_budget() {
     assert_eq!(gpu.used_memory, 0);
     assert_eq!(gpu.total_memory, 0);
     assert_eq!(
-        gpu.detail.get("Memory (L0)").map(String::as_str),
+        gpu.detail.get(detail_keys::MEMORY_L0).map(String::as_str),
         Some("Shared/system memory; dedicated VRAM budget unavailable")
     );
 }
@@ -165,7 +170,7 @@ fn shared_memory_does_not_fabricate_vram_budget() {
 fn windows_overwrites_wmi_gaps() {
     let mut gpu = make_baseline_gpu_info();
     gpu.detail
-        .insert("Metrics Source".to_string(), "WMI".to_string());
+        .insert(detail_keys::METRICS_SOURCE.to_string(), "WMI".to_string());
     let readout = LevelZeroReadout {
         engines: vec![("compute (XMX)", 65.0), ("render", 20.0)],
         primary_engine_utilization: Some(FreshValue::level_zero(65.0)),
@@ -186,14 +191,16 @@ fn windows_overwrites_wmi_gaps() {
     assert_eq!(gpu.temperature, 71);
     assert_eq!(gpu.frequency, 2200);
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(detail_keys::FAN_SPEED).map(String::as_str),
         Some("1600 RPM (40%)")
     );
     // The duty cycle only ever rides in the detail string; the typed field
     // carries the tachometer reading on its own.
     assert_eq!(gpu.fan_speed_rpm, Some(1600));
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail
+            .get(detail_keys::METRICS_SOURCE)
+            .map(String::as_str),
         Some("WMI + Level Zero Sysman")
     );
 }
@@ -215,7 +222,10 @@ fn duty_cycle_only_fan_leaves_the_typed_field_unset() {
     };
     apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
 
-    assert_eq!(gpu.detail.get("Fan Speed").map(String::as_str), Some("40%"));
+    assert_eq!(
+        gpu.detail.get(detail_keys::FAN_SPEED).map(String::as_str),
+        Some("40%")
+    );
     assert!(gpu.fan_speed_rpm.is_none());
 }
 
@@ -228,7 +238,7 @@ fn windows_duty_cycle_only_fan_clears_a_stale_tachometer_reading() {
     let mut gpu = make_baseline_gpu_info();
     gpu.fan_speed_rpm = Some(1450);
     gpu.detail
-        .insert("Fan Speed".to_string(), "1450 RPM".to_string());
+        .insert(detail_keys::FAN_SPEED.to_string(), "1450 RPM".to_string());
     let readout = LevelZeroReadout {
         fan: Some(LevelZeroFanReadout {
             rpm: None,
@@ -239,7 +249,10 @@ fn windows_duty_cycle_only_fan_clears_a_stale_tachometer_reading() {
     };
     apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
 
-    assert_eq!(gpu.detail.get("Fan Speed").map(String::as_str), Some("40%"));
+    assert_eq!(
+        gpu.detail.get(detail_keys::FAN_SPEED).map(String::as_str),
+        Some("40%")
+    );
     assert!(gpu.fan_speed_rpm.is_none());
 }
 
@@ -262,7 +275,7 @@ fn linux_l0_fan_fills_a_gap_the_hwmon_baseline_left() {
 
     assert_eq!(gpu.fan_speed_rpm, Some(1800));
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(detail_keys::FAN_SPEED).map(String::as_str),
         Some("1800 RPM")
     );
 }
@@ -286,7 +299,7 @@ fn a_garbled_l0_fan_reading_is_clamped_before_either_write() {
 
     assert_eq!(gpu.fan_speed_rpm, Some(MAX_GPU_FAN_RPM));
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(detail_keys::FAN_SPEED).map(String::as_str),
         Some(format!("{MAX_GPU_FAN_RPM} RPM").as_str())
     );
 }
@@ -296,7 +309,7 @@ fn no_data_keeps_baseline() {
     let mut gpu = make_baseline_gpu_info();
     gpu.utilization = 42.0;
     gpu.detail
-        .insert("Metrics Source".to_string(), "WMI".to_string());
+        .insert(detail_keys::METRICS_SOURCE.to_string(), "WMI".to_string());
 
     apply_to_gpu_info(
         &mut gpu,
@@ -306,8 +319,10 @@ fn no_data_keeps_baseline() {
 
     assert_eq!(gpu.utilization, 42.0);
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail
+            .get(detail_keys::METRICS_SOURCE)
+            .map(String::as_str),
         Some("WMI")
     );
-    assert!(!gpu.detail.contains_key("Power (L0)"));
+    assert!(!gpu.detail.contains_key(detail_keys::POWER_L0));
 }

@@ -16,6 +16,7 @@ use super::common::CommonNpuExporter;
 use super::exporter_trait::{CommonNpuMetrics, NpuExporter};
 use crate::api::metrics::MetricBuilder;
 use crate::device::GpuInfo;
+use crate::device::detail_keys;
 
 /// Google TPU-specific metric exporter
 pub struct GoogleTpuExporter {
@@ -118,7 +119,7 @@ impl NpuExporter for GoogleTpuExporter {
             );
 
         // 1. Chip Version / Accelerator Type
-        if let Some(chip_version) = info.detail.get("Chip Version") {
+        if let Some(chip_version) = info.detail.get(detail_keys::CHIP_VERSION) {
             let labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -135,7 +136,7 @@ impl NpuExporter for GoogleTpuExporter {
                 .metric("all_smi_tpu_chip_version_info", &labels, 1);
         }
 
-        if let Some(accel_type) = info.detail.get("Accelerator Type") {
+        if let Some(accel_type) = info.detail.get(detail_keys::ACCELERATOR_TYPE) {
             let labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -153,7 +154,7 @@ impl NpuExporter for GoogleTpuExporter {
         }
 
         // 2. Core Counts
-        if let Some(core_count) = info.detail.get("Core Count")
+        if let Some(core_count) = info.detail.get(detail_keys::CORE_COUNT)
             && let Ok(count) = core_count.parse::<f64>()
         {
             builder
@@ -162,7 +163,7 @@ impl NpuExporter for GoogleTpuExporter {
                 .metric("all_smi_tpu_core_count", &base_labels, count);
         }
 
-        if let Some(tc_count) = info.detail.get("TensorCore Count")
+        if let Some(tc_count) = info.detail.get(detail_keys::TENSORCORE_COUNT)
             && let Ok(count) = tc_count.parse::<f64>()
         {
             builder
@@ -175,7 +176,7 @@ impl NpuExporter for GoogleTpuExporter {
         }
 
         // 3. Memory Type
-        if let Some(mem_type) = info.detail.get("Memory Type") {
+        if let Some(mem_type) = info.detail.get(detail_keys::MEMORY_TYPE) {
             let labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -193,7 +194,7 @@ impl NpuExporter for GoogleTpuExporter {
         }
 
         // 4. Runtime / Library Version
-        if let Some(lib_ver) = info.detail.get("lib_version") {
+        if let Some(lib_ver) = info.detail.get(detail_keys::LIB_VERSION) {
             let labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -211,7 +212,7 @@ impl NpuExporter for GoogleTpuExporter {
         }
 
         // 5. Max Power Limit
-        if let Some(max_power_str) = info.detail.get("Max Power") {
+        if let Some(max_power_str) = info.detail.get(detail_keys::MAX_POWER) {
             // Format is usually "XXX W"
             if let Some(val_str) = max_power_str.split_whitespace().next()
                 && let Ok(val) = val_str.parse::<f64>()
@@ -227,7 +228,7 @@ impl NpuExporter for GoogleTpuExporter {
         }
 
         // 6. HLO Metrics (Queue Size and Execution Timing)
-        if let Some(q_size_str) = info.detail.get("HLO Queue Size")
+        if let Some(q_size_str) = info.detail.get(detail_keys::HLO_QUEUE_SIZE)
             && let Ok(val) = q_size_str.parse::<f64>()
         {
             builder
@@ -241,27 +242,27 @@ impl NpuExporter for GoogleTpuExporter {
 
         let hlo_metrics = [
             (
-                "HLO Exec Mean",
+                detail_keys::HLO_EXEC_MEAN,
                 "all_smi_tpu_hlo_exec_mean_microseconds",
                 "HLO execution timing mean in microseconds",
             ),
             (
-                "HLO Exec P50",
+                detail_keys::HLO_EXEC_P50,
                 "all_smi_tpu_hlo_exec_p50_microseconds",
                 "HLO execution timing 50th percentile in microseconds",
             ),
             (
-                "HLO Exec P90",
+                detail_keys::HLO_EXEC_P90,
                 "all_smi_tpu_hlo_exec_p90_microseconds",
                 "HLO execution timing 90th percentile in microseconds",
             ),
             (
-                "HLO Exec P95",
+                detail_keys::HLO_EXEC_P95,
                 "all_smi_tpu_hlo_exec_p95_microseconds",
                 "HLO execution timing 95th percentile in microseconds",
             ),
             (
-                "HLO Exec P99.9",
+                detail_keys::HLO_EXEC_P99_9,
                 "all_smi_tpu_hlo_exec_p999_microseconds",
                 "HLO execution timing 99.9th percentile in microseconds",
             ),

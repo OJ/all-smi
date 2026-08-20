@@ -14,6 +14,7 @@
 //! - Provide extensible `detail` field for platform-specific information
 //! - Maintain ~95% reduction in redundant API calls (from PR #69)
 
+use crate::device::detail_keys;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -35,9 +36,9 @@ pub struct DeviceStaticInfo {
 
     /// Extensible key-value storage for platform-specific details
     /// Examples:
-    /// - NVIDIA: "CUDA Version" => "12.0", "PCIe Generation" => "4"
-    /// - AMD: "ROCm Version" => "5.7", "VBIOS Version" => "xxx"
-    /// - Apple: "Architecture" => "M2", "Die Count" => "2"
+    /// - NVIDIA: "cuda_version" => "12.0", "pcie_generation" => "4"
+    /// - AMD: "rocm_version" => "5.7", "vbios_version" => "xxx"
+    /// - Apple: "architecture" => "M2", "die_count" => "2"
     pub detail: HashMap<String, String>,
 }
 
@@ -126,7 +127,7 @@ impl DetailBuilder {
 
     /// Inserts library/driver information
     pub fn insert_lib_info(self, name: &str, version: Option<&str>) -> Self {
-        let key = format!("{name} Version");
+        let key = detail_keys::library_version(name);
         if let Some(ver) = version {
             self.insert(key, ver)
         } else {
@@ -141,9 +142,9 @@ impl DetailBuilder {
         link_gen: Option<&str>,
         link_width: Option<&str>,
     ) -> Self {
-        self.insert_optional("PCI Bus ID", bus_id)
-            .insert_optional("PCIe Generation", link_gen)
-            .insert_optional("PCIe Link Width", link_width)
+        self.insert_optional(detail_keys::PCI_BUS_ID, bus_id)
+            .insert_optional(detail_keys::PCIE_GENERATION, link_gen)
+            .insert_optional(detail_keys::PCIE_LINK_WIDTH, link_width)
     }
 
     /// Builds the final HashMap
@@ -262,10 +263,10 @@ impl PciInfo {
 ///
 /// ```ignore
 /// let details = build_detail_map! {
-///     "Name" => Some(device_name),
-///     "UUID" => device_uuid,  // Option<String>
-///     "Driver" => Some("nvidia-smi".to_string()),
-///     "Temperature" => temp.map(|t| format!("{}°C", t)),
+///     detail_keys::NAME => Some(device_name),
+///     detail_keys::UUID => device_uuid,  // Option<String>
+///     detail_keys::DRIVER => Some("nvidia-smi".to_string()),
+///     detail_keys::TEMPERATURE => temp.map(|t| format!("{}°C", t)),
 /// };
 /// ```
 #[macro_export]
@@ -335,21 +336,36 @@ mod tests {
 
     #[test]
     fn test_detail_builder() {
+        // Arbitrary fixture keys, bound to locals so they read as fixtures
+        // rather than as detail keys that escaped `detail_keys`.
+        let (k1, k2, k3) = ("key1", "key2", "key3");
         let details = DetailBuilder::new()
-            .insert("Key1", "Value1")
-            .insert_optional("Key2", Some("Value2"))
-            .insert_optional("Key3", None::<String>)
+            .insert(k1, "Value1")
+            .insert_optional(k2, Some("Value2"))
+            .insert_optional(k3, None::<String>)
             .insert_lib_info("CUDA", Some("12.0"))
             .insert_pci_info(Some("00:03.0"), Some("4"), Some("x16"))
             .build();
 
-        assert_eq!(details.get("Key1"), Some(&"Value1".to_string()));
-        assert_eq!(details.get("Key2"), Some(&"Value2".to_string()));
-        assert_eq!(details.get("Key3"), None);
-        assert_eq!(details.get("CUDA Version"), Some(&"12.0".to_string()));
-        assert_eq!(details.get("PCI Bus ID"), Some(&"00:03.0".to_string()));
-        assert_eq!(details.get("PCIe Generation"), Some(&"4".to_string()));
-        assert_eq!(details.get("PCIe Link Width"), Some(&"x16".to_string()));
+        assert_eq!(details.get(k1), Some(&"Value1".to_string()));
+        assert_eq!(details.get(k2), Some(&"Value2".to_string()));
+        assert_eq!(details.get(k3), None);
+        assert_eq!(
+            details.get(detail_keys::CUDA_VERSION),
+            Some(&"12.0".to_string())
+        );
+        assert_eq!(
+            details.get(detail_keys::PCI_BUS_ID),
+            Some(&"00:03.0".to_string())
+        );
+        assert_eq!(
+            details.get(detail_keys::PCIE_GENERATION),
+            Some(&"4".to_string())
+        );
+        assert_eq!(
+            details.get(detail_keys::PCIE_LINK_WIDTH),
+            Some(&"x16".to_string())
+        );
     }
 
     #[test]
@@ -381,13 +397,16 @@ mod tests {
         let temp = Some(75);
 
         let details = build_detail_map! {
-            "Name" => name,
-            "UUID" => uuid,
-            "Temperature" => temp.map(|t| format!("{t}°C")),
+            detail_keys::NAME => name,
+            detail_keys::UUID => uuid,
+            detail_keys::TEMPERATURE => temp.map(|t| format!("{t}°C")),
         };
 
-        assert_eq!(details.get("Name"), Some(&"Device".to_string()));
-        assert_eq!(details.get("UUID"), None);
-        assert_eq!(details.get("Temperature"), Some(&"75°C".to_string()));
+        assert_eq!(details.get(detail_keys::NAME), Some(&"Device".to_string()));
+        assert_eq!(details.get(detail_keys::UUID), None);
+        assert_eq!(
+            details.get(detail_keys::TEMPERATURE),
+            Some(&"75°C".to_string())
+        );
     }
 }

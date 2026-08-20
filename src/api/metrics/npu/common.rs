@@ -15,6 +15,7 @@
 use super::exporter_trait::CommonNpuMetrics;
 use crate::api::metrics::MetricBuilder;
 use crate::device::GpuInfo;
+use crate::device::detail_keys;
 use tracing::{debug, warn};
 
 /// Maximum allowed length for device names and UUIDs in metrics
@@ -173,7 +174,7 @@ impl CommonNpuMetrics for CommonNpuExporter {
     ) {
         // Device type check removed - caller ensures NPU-only devices
         // Generic NPU firmware version
-        if let Some(firmware) = info.detail.get("firmware") {
+        if let Some(firmware) = info.detail.get(detail_keys::FIRMWARE) {
             // Sanitize labels to prevent injection
             let safe_name = Self::sanitize_label(&info.name);
             let safe_instance = Self::sanitize_label(&info.instance);
@@ -229,7 +230,7 @@ impl CommonNpuMetrics for CommonNpuExporter {
         ];
 
         // Generic temperature metric if available
-        if let Some(temp_str) = info.detail.get("temperature")
+        if let Some(temp_str) = info.detail.get(detail_keys::TEMPERATURE)
             && let Some(temp) = Self::parse_numeric_value(temp_str)
         {
             builder
@@ -251,7 +252,7 @@ impl CommonNpuMetrics for CommonNpuExporter {
         ];
 
         // Generic power metric if available
-        if let Some(power_str) = info.detail.get("power")
+        if let Some(power_str) = info.detail.get(detail_keys::POWER)
             && let Some(power) = Self::parse_numeric_value(power_str)
         {
             builder
@@ -261,7 +262,7 @@ impl CommonNpuMetrics for CommonNpuExporter {
         }
 
         // Generic power draw (common field name)
-        if let Some(power_str) = info.detail.get("power_draw")
+        if let Some(power_str) = info.detail.get(detail_keys::POWER_DRAW)
             && let Some(power) = Self::parse_numeric_value(power_str)
         {
             builder

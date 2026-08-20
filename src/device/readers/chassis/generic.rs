@@ -19,6 +19,7 @@
 //! - Thermal zones (`/sys/class/thermal/`) for board temperatures
 //! - Cached GPU power for total power consumption
 
+use crate::device::detail_keys;
 use crate::device::{ChassisInfo, ChassisReader};
 use crate::utils::get_hostname;
 use chrono::Local;
@@ -84,19 +85,19 @@ fn read_dmi_field(field: &str) -> Option<String> {
 #[cfg(target_os = "linux")]
 fn collect_dmi_info(detail: &mut HashMap<String, String>) {
     if let Some(v) = read_dmi_field("product_name") {
-        detail.insert("Product Name".to_string(), v);
+        detail.insert(detail_keys::PRODUCT_NAME.to_string(), v);
     }
     if let Some(v) = read_dmi_field("sys_vendor") {
-        detail.insert("Vendor".to_string(), v);
+        detail.insert(detail_keys::VENDOR.to_string(), v);
     }
     if let Some(v) = read_dmi_field("board_name") {
-        detail.insert("Board".to_string(), v);
+        detail.insert(detail_keys::BOARD.to_string(), v);
     }
     if let Some(v) = read_dmi_field("product_version") {
-        detail.insert("Version".to_string(), v);
+        detail.insert(detail_keys::VERSION.to_string(), v);
     }
     if let Some(v) = read_dmi_field("bios_version") {
-        detail.insert("BIOS Version".to_string(), v);
+        detail.insert(detail_keys::BIOS_VERSION.to_string(), v);
     }
 }
 
@@ -168,9 +169,9 @@ impl ChassisReader for GenericChassisReader {
 
         // Platform identifier
         #[cfg(target_os = "linux")]
-        detail.insert("platform".to_string(), "Linux".to_string());
+        detail.insert(detail_keys::PLATFORM.to_string(), "Linux".to_string());
         #[cfg(target_os = "windows")]
-        detail.insert("platform".to_string(), "Windows".to_string());
+        detail.insert(detail_keys::PLATFORM.to_string(), "Windows".to_string());
 
         // Read thermal zones (Linux only)
         #[cfg(target_os = "linux")]
@@ -304,9 +305,9 @@ mod tests {
         let info = reader.get_chassis_info().unwrap();
         // On a real Linux system, at least one DMI field should be present
         // (product_name is almost always available)
-        let has_any_dmi = info.detail.contains_key("Product Name")
-            || info.detail.contains_key("Vendor")
-            || info.detail.contains_key("Board");
+        let has_any_dmi = info.detail.contains_key(detail_keys::PRODUCT_NAME)
+            || info.detail.contains_key(detail_keys::VENDOR)
+            || info.detail.contains_key(detail_keys::BOARD);
         assert!(
             has_any_dmi,
             "Expected at least one DMI field on Linux, got detail: {:?}",

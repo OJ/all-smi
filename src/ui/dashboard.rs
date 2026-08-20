@@ -17,6 +17,7 @@ use std::io::Write;
 use crossterm::{queue, style::Color, style::Print};
 
 use crate::app_state::AppState;
+use crate::device::detail_keys;
 use crate::metrics::gpu_readings;
 use crate::ui::buffer::BufferWriter;
 use crate::ui::led_grid;
@@ -54,7 +55,7 @@ pub fn draw_system_view<W: Write>(stdout: &mut W, state: &AppState, cols: u16) {
     // (thermal pressure display, unified memory totals, etc.) was dead.
     let is_apple_silicon = state.gpu_info.iter().any(|gpu| {
         gpu.detail
-            .get("architecture")
+            .get(detail_keys::ARCHITECTURE)
             .map(|arch| arch == "Apple Silicon")
             .unwrap_or(false)
     });
@@ -106,7 +107,7 @@ pub fn draw_system_view<W: Write>(stdout: &mut W, state: &AppState, cols: u16) {
             .iter()
             .filter_map(|gpu| {
                 gpu.detail
-                    .get("combined_power_mw")
+                    .get(detail_keys::COMBINED_POWER_MW)
                     .and_then(|s| s.parse::<f64>().ok())
                     .map(|mw| mw / 1000.0) // Convert mW to W
             })
@@ -171,7 +172,7 @@ pub fn draw_system_view<W: Write>(stdout: &mut W, state: &AppState, cols: u16) {
         let thermal_pressure = state
             .gpu_info
             .first()
-            .and_then(|gpu| gpu.detail.get("thermal_pressure"))
+            .and_then(|gpu| gpu.detail.get(detail_keys::THERMAL_PRESSURE))
             .cloned()
             .unwrap_or_else(|| "Unknown".to_string());
         ("Thermal", thermal_pressure)

@@ -21,6 +21,7 @@
 //!
 //! This reader uses native macOS APIs (no sudo required)
 
+use crate::device::detail_keys;
 use crate::device::macos_native::get_native_metrics_manager;
 use crate::device::{ChassisInfo, ChassisReader};
 use crate::utils::get_hostname;
@@ -54,8 +55,14 @@ impl ChassisReader for AppleSiliconNativeChassisReader {
 
         // Build detail map with platform-specific information
         let mut detail = HashMap::new();
-        detail.insert("platform".to_string(), "Apple Silicon".to_string());
-        detail.insert("api".to_string(), "Native (IOReport/SMC)".to_string());
+        detail.insert(
+            detail_keys::PLATFORM.to_string(),
+            "Apple Silicon".to_string(),
+        );
+        detail.insert(
+            detail_keys::API.to_string(),
+            "Native (IOReport/SMC)".to_string(),
+        );
 
         // Add individual power components to detail with bounds validation
         // Power values must be non-negative and within reasonable bounds (0-10000W)
@@ -66,28 +73,28 @@ impl ChassisReader for AppleSiliconNativeChassisReader {
         let ane_power_watts = validate_power(data.ane_power_mw);
 
         detail.insert(
-            "cpu_power_watts".to_string(),
+            detail_keys::CPU_POWER_WATTS.to_string(),
             format!("{cpu_power_watts:.2}"),
         );
         detail.insert(
-            "gpu_power_watts".to_string(),
+            detail_keys::GPU_POWER_WATTS.to_string(),
             format!("{gpu_power_watts:.2}"),
         );
         detail.insert(
-            "ane_power_watts".to_string(),
+            detail_keys::ANE_POWER_WATTS.to_string(),
             format!("{ane_power_watts:.2}"),
         );
 
         // Add cluster frequency information
         if data.e_cluster_frequency > 0 {
             detail.insert(
-                "e_cluster_freq_mhz".to_string(),
+                detail_keys::E_CLUSTER_FREQ_MHZ.to_string(),
                 data.e_cluster_frequency.to_string(),
             );
         }
         if data.p_cluster_frequency > 0 {
             detail.insert(
-                "p_cluster_freq_mhz".to_string(),
+                detail_keys::P_CLUSTER_FREQ_MHZ.to_string(),
                 data.p_cluster_frequency.to_string(),
             );
         }

@@ -14,6 +14,7 @@
 
 use crate::common::config::{AlertConfig, EnergyConfig};
 use crate::common::config_file::DisplaySettings;
+use crate::device::detail_keys;
 use crate::device::{
     ChassisInfo, CpuInfo, GpuInfo, MemoryInfo, MigGpuInfo, ProcessInfo, VgpuHostInfo,
 };
@@ -677,7 +678,7 @@ impl AppState {
                 });
             let gpu_index = gpu
                 .detail
-                .get("index")
+                .get(detail_keys::INDEX)
                 .and_then(|s| s.parse::<u32>().ok())
                 .unwrap_or_else(|| {
                     // Local-mode readers (and a few remote paths) may
@@ -744,12 +745,12 @@ impl SortCriteria {
                 a.hostname.cmp(&b.hostname).then_with(|| {
                     let a_index = a
                         .detail
-                        .get("index")
+                        .get(detail_keys::INDEX)
                         .and_then(|s| s.parse::<u32>().ok())
                         .unwrap_or(0);
                     let b_index = b
                         .detail
-                        .get("index")
+                        .get(detail_keys::INDEX)
                         .and_then(|s| s.parse::<u32>().ok())
                         .unwrap_or(0);
                     a_index.cmp(&b_index)
@@ -764,12 +765,12 @@ impl SortCriteria {
                     .then_with(|| {
                         let a_index = a
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         let b_index = b
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         a_index.cmp(&b_index)
@@ -783,12 +784,12 @@ impl SortCriteria {
                     .then_with(|| {
                         let a_index = a
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         let b_index = b
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         a_index.cmp(&b_index)
@@ -803,12 +804,12 @@ impl SortCriteria {
                     .then_with(|| {
                         let a_index = a
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         let b_index = b
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         a_index.cmp(&b_index)
@@ -822,12 +823,12 @@ impl SortCriteria {
                     .then_with(|| {
                         let a_index = a
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         let b_index = b
                             .detail
-                            .get("index")
+                            .get(detail_keys::INDEX)
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
                         a_index.cmp(&b_index)
@@ -838,12 +839,12 @@ impl SortCriteria {
                 a.hostname.cmp(&b.hostname).then_with(|| {
                     let a_index = a
                         .detail
-                        .get("index")
+                        .get(detail_keys::INDEX)
                         .and_then(|s| s.parse::<u32>().ok())
                         .unwrap_or(0);
                     let b_index = b
                         .detail
-                        .get("index")
+                        .get(detail_keys::INDEX)
                         .and_then(|s| s.parse::<u32>().ok())
                         .unwrap_or(0);
                     a_index.cmp(&b_index)

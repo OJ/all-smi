@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::device::GpuReader;
+use crate::device::detail_keys;
 use crate::device::readers::common_cache::{DetailBuilder, DeviceStaticInfo};
 use crate::device::types::{GpuInfo, MAX_GPU_FAN_RPM, ProcessInfo};
 use crate::utils::get_hostname;
@@ -181,68 +182,68 @@ impl AmdGpuReader {
                     );
 
                     let mut builder = DetailBuilder::new()
-                        .insert("Device Name", &app_device_info.marketing_name)
-                        .insert("PCI Bus", app_device_info.pci_bus.to_string());
+                        .insert(detail_keys::DEVICE_NAME, &app_device_info.marketing_name)
+                        .insert(detail_keys::PCI_BUS, app_device_info.pci_bus.to_string());
 
                     // Add ROCm version
                     if let Some(ref ver) = self.get_rocm_version() {
                         builder = builder
-                            .insert("ROCm Version", ver)
-                            .insert("lib_name", "ROCm")
-                            .insert("lib_version", ver);
+                            .insert(detail_keys::ROCM_VERSION, ver)
+                            .insert(detail_keys::LIB_NAME, "ROCm")
+                            .insert(detail_keys::LIB_VERSION, ver);
                     }
 
                     let mut detail = builder.build();
 
                     // Add device details
                     detail.insert(
-                        "Device ID".to_string(),
+                        detail_keys::DEVICE_ID.to_string(),
                         format!("{:#06x}", ext.device_id()),
                     );
                     detail.insert(
-                        "Revision ID".to_string(),
+                        detail_keys::REVISION_ID.to_string(),
                         format!("{:#04x}", ext.pci_rev_id()),
                     );
                     detail.insert(
-                        "ASIC Name".to_string(),
+                        detail_keys::ASIC_NAME.to_string(),
                         app_device_info.asic_name.to_string(),
                     );
 
                     if let Some(ref vbios) = app_device_info.vbios {
-                        detail.insert("VBIOS Version".to_string(), vbios.ver.clone());
-                        detail.insert("VBIOS Date".to_string(), vbios.date.clone());
+                        detail.insert(detail_keys::VBIOS_VERSION.to_string(), vbios.ver.clone());
+                        detail.insert(detail_keys::VBIOS_DATE.to_string(), vbios.date.clone());
                     }
 
                     if let Some(ref cap) = app_device_info.power_cap {
-                        detail.insert("Power Cap".to_string(), format!("{} W", cap.current));
-                        detail.insert("Power Cap (Min)".to_string(), format!("{} W", cap.min));
-                        detail.insert("Power Cap (Max)".to_string(), format!("{} W", cap.max));
+                        detail.insert(detail_keys::POWER_CAP.to_string(), format!("{} W", cap.current));
+                        detail.insert(detail_keys::POWER_CAP_MIN.to_string(), format!("{} W", cap.min));
+                        detail.insert(detail_keys::POWER_CAP_MAX.to_string(), format!("{} W", cap.max));
                     }
 
                     if let Some(link) = app_device_info.max_gpu_link {
                         detail.insert(
-                            "Max GPU Link".to_string(),
+                            detail_keys::MAX_GPU_LINK.to_string(),
                             format!("Gen{} x{}", link.r#gen, link.width),
                         );
                     }
 
                     if let Some(link) = app_device_info.max_system_link {
                         detail.insert(
-                            "Max System Link".to_string(),
+                            detail_keys::MAX_SYSTEM_LINK.to_string(),
                             format!("Gen{} x{}", link.r#gen, link.width),
                         );
                     }
 
                     if let Some(min_dpm_link) = app_device_info.min_dpm_link {
                         detail.insert(
-                            "Min DPM Link".to_string(),
+                            detail_keys::MIN_DPM_LINK.to_string(),
                             format!("Gen{} x{}", min_dpm_link.r#gen, min_dpm_link.width),
                         );
                     }
 
                     if let Some(max_dpm_link) = app_device_info.max_dpm_link {
                         detail.insert(
-                            "Max DPM Link".to_string(),
+                            detail_keys::MAX_DPM_LINK.to_string(),
                             format!("Gen{} x{}", max_dpm_link.r#gen, max_dpm_link.width),
                         );
                     }
@@ -266,7 +267,7 @@ impl AmdGpuReader {
                                 "{}.{}.{}",
                                 drm.version_major, drm.version_minor, drm.version_patchlevel
                             );
-                            detail.insert("Driver Version".to_string(), ver);
+                            detail.insert(detail_keys::DRIVER_VERSION.to_string(), ver);
                         } else {
                             eprintln!(
                                 "Warning: Invalid driver version components detected: {}.{}.{} for device {}",
@@ -428,16 +429,16 @@ impl GpuReader for AmdGpuReader {
             if let Some(ref sensors) = sensors {
                 if let Some(link) = sensors.current_link {
                     detail.insert(
-                        "Current Link".to_string(),
+                        detail_keys::CURRENT_LINK.to_string(),
                         format!("Gen{} x{}", link.r#gen, link.width),
                     );
                 }
                 if let Some(fan) = clamp_fan_rpm(sensors.fan_rpm) {
                     fan_speed_rpm = Some(fan);
-                    detail.insert("Fan Speed".to_string(), format!("{fan} RPM"));
+                    detail.insert(detail_keys::FAN_SPEED.to_string(), format!("{fan} RPM"));
                 }
                 if let Some(mclk) = sensors.mclk {
-                    detail.insert("Memory Clock".to_string(), format!("{mclk} MHz"));
+                    detail.insert(detail_keys::MEMORY_CLOCK.to_string(), format!("{mclk} MHz"));
                 }
             }
 

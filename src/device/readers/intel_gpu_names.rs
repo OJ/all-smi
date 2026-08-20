@@ -156,7 +156,7 @@ impl IntelArchitecture {
         }
     }
 
-    /// Render the SYCL-capability decision for the `detail["SYCL Capable"]`
+    /// Render the SYCL-capability decision for the `detail["sycl_capable"]`
     /// map entry. Unlike a bare `is_sycl_capable()` boolean, this returns
     /// `"Unknown"` for the [`Unknown`](Self::Unknown) variant so consumers
     /// can distinguish "we know this GPU is not SYCL-capable" from "we
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn architecture_labels_are_stable() {
         // Lock in the label strings so downstream consumers (which embed
-        // them in `detail["Architecture"]`) can rely on them.
+        // them in `detail["architecture"]`) can rely on them.
         assert_eq!(
             IntelArchitecture::Alchemist.label(),
             "Alchemist (Xe-HPG, A-series)"

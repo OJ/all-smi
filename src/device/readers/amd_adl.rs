@@ -72,6 +72,7 @@ pub mod sensors;
 #[cfg(target_os = "windows")]
 pub mod loader;
 
+use crate::device::detail_keys;
 use crate::device::readers::windows_gpu_perf::note_metrics_source;
 use crate::device::types::{GpuInfo, MAX_GPU_FAN_RPM};
 use sensors::AdlReadout;
@@ -105,45 +106,55 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, readout: &AdlReadout) {
             // at 0 above. Surface the true reading only in that case,
             // rather than adding a key that duplicates `temperature` on
             // every normal poll.
-            gpu.detail
-                .insert("Temperature".to_string(), format!("{temperature} C"));
+            gpu.detail.insert(
+                detail_keys::TEMPERATURE.to_string(),
+                format!("{temperature} C"),
+            );
         }
         // The label names which sensor was used. Edge, gfx, and hotspot
         // are not interchangeable (hotspot runs 15-30 C higher), and an
         // aggregated multi-host view would otherwise mix them with
         // nothing to tell them apart.
-        gpu.detail
-            .insert("Source: Temperature".to_string(), source.to_string());
+        gpu.detail.insert(
+            detail_keys::SOURCE_TEMPERATURE.to_string(),
+            source.to_string(),
+        );
         applied.push("temperature");
     }
     // Hotspot and memory temperatures have no dedicated `GpuInfo` field
     // but are the numbers that actually throttle a modern card, so they
     // are surfaced as details rather than dropped.
     if let Some(hotspot) = readout.temperature_hotspot_c {
-        gpu.detail
-            .insert("Hotspot Temperature".to_string(), format!("{hotspot} C"));
+        gpu.detail.insert(
+            detail_keys::HOTSPOT_TEMPERATURE.to_string(),
+            format!("{hotspot} C"),
+        );
     }
     if let Some(memory) = readout.temperature_mem_c {
-        gpu.detail
-            .insert("Memory Temperature".to_string(), format!("{memory} C"));
+        gpu.detail.insert(
+            detail_keys::MEMORY_TEMPERATURE.to_string(),
+            format!("{memory} C"),
+        );
     }
 
     if let Some(power) = readout.power_w {
         gpu.power_consumption = power;
         gpu.detail
-            .insert("Source: Power".to_string(), "ADL".to_string());
+            .insert(detail_keys::SOURCE_POWER.to_string(), "ADL".to_string());
         applied.push("power");
     }
 
     if let Some(clock) = readout.clock_gfx_mhz {
         gpu.frequency = clock;
         gpu.detail
-            .insert("Source: Frequency".to_string(), "ADL".to_string());
+            .insert(detail_keys::SOURCE_FREQUENCY.to_string(), "ADL".to_string());
         applied.push("clocks");
     }
     if let Some(clock) = readout.clock_mem_mhz {
-        gpu.detail
-            .insert("Memory Clock".to_string(), format!("{clock} MHz"));
+        gpu.detail.insert(
+            detail_keys::MEMORY_CLOCK.to_string(),
+            format!("{clock} MHz"),
+        );
     }
 
     if let Some(rpm) = readout.fan_rpm {
@@ -154,28 +165,30 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, readout: &AdlReadout) {
         let rpm = rpm.min(MAX_GPU_FAN_RPM);
         // Written twice from one value: the typed field the TUI and the
         // Prometheus exporter read, and the `Fan Speed` detail string that
-        // snapshots and the `contains_key("Fan Speed")` overwrite guard in
+        // snapshots and the `contains_key(detail_keys::FAN_SPEED)` overwrite guard in
         // `intel_gpu_level_zero::apply_fan` still coordinate through. The
         // key and value format match `amd.rs`, `intel_gpu_linux`, and the
         // Level Zero reader exactly; a divergent key would sit outside that
         // guard.
         gpu.fan_speed_rpm = Some(rpm);
         gpu.detail
-            .insert("Fan Speed".to_string(), format!("{rpm} RPM"));
+            .insert(detail_keys::FAN_SPEED.to_string(), format!("{rpm} RPM"));
         gpu.detail
-            .insert("Source: Fan".to_string(), "ADL".to_string());
+            .insert(detail_keys::SOURCE_FAN.to_string(), "ADL".to_string());
         applied.push("fan");
     }
 
     if let Some(activity) = readout.activity_gfx_pct {
         gpu.utilization = activity;
-        gpu.detail
-            .insert("Source: Utilization".to_string(), "ADL".to_string());
+        gpu.detail.insert(
+            detail_keys::SOURCE_UTILIZATION.to_string(),
+            "ADL".to_string(),
+        );
         applied.push("utilization");
     }
     if let Some(activity) = readout.activity_mem_pct {
         gpu.detail.insert(
-            "Memory Controller Activity".to_string(),
+            detail_keys::MEMORY_CONTROLLER_ACTIVITY.to_string(),
             format!("{activity:.0}%"),
         );
     }
@@ -185,7 +198,7 @@ pub fn apply_to_gpu_info(gpu: &mut GpuInfo, readout: &AdlReadout) {
     // sensor must not carry a Note claiming all four, which would
     // contradict the per-field `Source: *` keys sitting beside it.
     gpu.detail.insert(
-        "Note".to_string(),
+        detail_keys::NOTE.to_string(),
         format!("via AMD ADL (PMLog): {}", applied.join(", ")),
     );
 }
@@ -254,14 +267,32 @@ mod tests {
     fn baseline_gpu() -> GpuInfo {
         let mut detail = HashMap::new();
         // The state #346 leaves behind on a working Windows host.
-        detail.insert("Metrics Source".to_string(), "WMI + DXGI + PDH".to_string());
-        detail.insert("Source: Utilization".to_string(), "PDH".to_string());
-        detail.insert("Source: Temperature".to_string(), "unavailable".to_string());
-        detail.insert("Source: Power".to_string(), "unavailable".to_string());
-        detail.insert("Source: Frequency".to_string(), "unavailable".to_string());
-        detail.insert("Source: Fan".to_string(), "unavailable".to_string());
         detail.insert(
-            "Note".to_string(),
+            detail_keys::METRICS_SOURCE.to_string(),
+            "WMI + DXGI + PDH".to_string(),
+        );
+        detail.insert(
+            detail_keys::SOURCE_UTILIZATION.to_string(),
+            "PDH".to_string(),
+        );
+        detail.insert(
+            detail_keys::SOURCE_TEMPERATURE.to_string(),
+            "unavailable".to_string(),
+        );
+        detail.insert(
+            detail_keys::SOURCE_POWER.to_string(),
+            "unavailable".to_string(),
+        );
+        detail.insert(
+            detail_keys::SOURCE_FREQUENCY.to_string(),
+            "unavailable".to_string(),
+        );
+        detail.insert(
+            detail_keys::SOURCE_FAN.to_string(),
+            "unavailable".to_string(),
+        );
+        detail.insert(
+            detail_keys::NOTE.to_string(),
             "Temperature, power, and fan need the AMD ADL library".to_string(),
         );
         GpuInfo {
@@ -320,33 +351,36 @@ mod tests {
         assert_eq!(gpu.temperature, 62);
         assert_eq!(gpu.power_consumption, 310.0);
         assert_eq!(gpu.frequency, 2400);
-        assert_eq!(gpu.detail["Hotspot Temperature"], "81 C");
-        assert_eq!(gpu.detail["Memory Temperature"], "70 C");
+        assert_eq!(gpu.detail[detail_keys::HOTSPOT_TEMPERATURE], "81 C");
+        assert_eq!(gpu.detail[detail_keys::MEMORY_TEMPERATURE], "70 C");
         assert_eq!(gpu.fan_speed_rpm, Some(1450));
-        assert_eq!(gpu.detail["Fan Speed"], "1450 RPM");
-        assert_eq!(gpu.detail["Memory Clock"], "1250 MHz");
-        assert_eq!(gpu.detail["Memory Controller Activity"], "44%");
+        assert_eq!(gpu.detail[detail_keys::FAN_SPEED], "1450 RPM");
+        assert_eq!(gpu.detail[detail_keys::MEMORY_CLOCK], "1250 MHz");
+        assert_eq!(gpu.detail[detail_keys::MEMORY_CONTROLLER_ACTIVITY], "44%");
 
-        assert_eq!(gpu.detail["Source: Temperature"], "ADL (edge)");
-        assert_eq!(gpu.detail["Source: Power"], "ADL");
-        assert_eq!(gpu.detail["Source: Frequency"], "ADL");
-        assert_eq!(gpu.detail["Source: Fan"], "ADL");
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH + ADL");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_TEMPERATURE], "ADL (edge)");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_POWER], "ADL");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_FREQUENCY], "ADL");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_FAN], "ADL");
+        assert_eq!(
+            gpu.detail[detail_keys::METRICS_SOURCE],
+            "WMI + DXGI + PDH + ADL"
+        );
     }
 
     #[test]
     fn detail_keys_follow_the_shared_reader_convention() {
         // Every reader that publishes these quantities uses the same
         // key with the unit carried in the *value*, not the key:
-        // `amd.rs` (Linux) writes `Fan Speed` = "1450 RPM" and
-        // `Memory Clock` = "1250 MHz", and `intel_gpu_linux` and the
+        // `amd.rs` (Linux) writes `fan_speed` = "1450 RPM" and
+        // `memory_clock` = "1250 MHz", and `intel_gpu_linux` and the
         // Level Zero reader match it.
         //
         // Two concrete costs of diverging, which is why this is locked
         // by a test rather than left to convention:
         //
         // 1. `intel_gpu_level_zero::apply_fan` guards an overwrite with
-        //    `detail.contains_key("Fan Speed")`. A reader using a
+        //    `detail.contains_key(detail_keys::FAN_SPEED)`. A reader using a
         //    different key silently opts out of that coordination.
         // 2. The Prometheus exporter falls back to parsing this string
         //    when a payload predates `GpuInfo::fan_speed_rpm`, so a
@@ -355,22 +389,22 @@ mod tests {
         apply_to_gpu_info(&mut gpu, &full_readout());
 
         for (key, expected) in [
-            ("Fan Speed", "1450 RPM"),
-            ("Memory Clock", "1250 MHz"),
-            ("Hotspot Temperature", "81 C"),
-            ("Memory Temperature", "70 C"),
-            ("Memory Controller Activity", "44%"),
+            (detail_keys::FAN_SPEED, "1450 RPM"),
+            (detail_keys::MEMORY_CLOCK, "1250 MHz"),
+            (detail_keys::HOTSPOT_TEMPERATURE, "81 C"),
+            (detail_keys::MEMORY_TEMPERATURE, "70 C"),
+            (detail_keys::MEMORY_CONTROLLER_ACTIVITY, "44%"),
         ] {
             assert_eq!(gpu.detail.get(key).map(String::as_str), Some(expected));
         }
 
         // The unit must not migrate back into the key.
         for stale in [
-            "Fan Speed (RPM)",
-            "Memory Clock (MHz)",
-            "Hotspot Temperature (C)",
-            "Memory Temperature (C)",
-            "Memory Controller Activity (%)",
+            "fan_speed_rpm",
+            "memory_clock_mhz",
+            "hotspot_temperature_c",
+            "memory_temperature_c",
+            "memory_controller_activity_pct",
         ] {
             assert!(!gpu.detail.contains_key(stale), "{stale} should not exist");
         }
@@ -378,13 +412,13 @@ mod tests {
 
     #[test]
     fn a_normal_temperature_adds_no_redundant_detail_key() {
-        // `Temperature` exists only to preserve a sub-zero reading the
+        // `temperature` exists only to preserve a sub-zero reading the
         // unsigned `GpuInfo.temperature` cannot hold. On every normal
         // poll it would just duplicate that field, so it is absent.
         let mut gpu = baseline_gpu();
         apply_to_gpu_info(&mut gpu, &full_readout());
         assert_eq!(gpu.temperature, 62);
-        assert!(!gpu.detail.contains_key("Temperature"));
+        assert!(!gpu.detail.contains_key(detail_keys::TEMPERATURE));
     }
 
     #[test]
@@ -402,7 +436,10 @@ mod tests {
             },
         );
         assert_eq!(gpu.fan_speed_rpm, Some(MAX_GPU_FAN_RPM));
-        assert_eq!(gpu.detail["Fan Speed"], format!("{MAX_GPU_FAN_RPM} RPM"));
+        assert_eq!(
+            gpu.detail[detail_keys::FAN_SPEED],
+            format!("{MAX_GPU_FAN_RPM} RPM")
+        );
     }
 
     #[test]
@@ -413,7 +450,7 @@ mod tests {
         assert_eq!(gpu.utilization, 12.0);
         apply_to_gpu_info(&mut gpu, &full_readout());
         assert_eq!(gpu.utilization, 97.0);
-        assert_eq!(gpu.detail["Source: Utilization"], "ADL");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_UTILIZATION], "ADL");
     }
 
     #[test]
@@ -430,10 +467,13 @@ mod tests {
 
         assert_eq!(gpu.temperature, 55);
         assert_eq!(gpu.utilization, 12.0);
-        assert_eq!(gpu.detail["Source: Utilization"], "PDH");
-        assert_eq!(gpu.detail["Source: Power"], "unavailable");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_UTILIZATION], "PDH");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_POWER], "unavailable");
         assert_eq!(gpu.power_consumption, 0.0);
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH + ADL");
+        assert_eq!(
+            gpu.detail[detail_keys::METRICS_SOURCE],
+            "WMI + DXGI + PDH + ADL"
+        );
     }
 
     #[test]
@@ -449,13 +489,16 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert_eq!(gpu.detail["Note"], "via AMD ADL (PMLog): temperature");
-        assert_eq!(gpu.detail["Source: Power"], "unavailable");
+        assert_eq!(
+            gpu.detail[detail_keys::NOTE],
+            "via AMD ADL (PMLog): temperature"
+        );
+        assert_eq!(gpu.detail[detail_keys::SOURCE_POWER], "unavailable");
 
         let mut full = baseline_gpu();
         apply_to_gpu_info(&mut full, &full_readout());
         assert_eq!(
-            full.detail["Note"],
+            full.detail[detail_keys::NOTE],
             "via AMD ADL (PMLog): temperature, power, clocks, fan, utilization"
         );
     }
@@ -473,7 +516,7 @@ mod tests {
         // `GpuInfo.temperature` is u32 and cannot hold it.
         assert_eq!(gpu.temperature, 0);
         // The true reading survives where it can be represented.
-        assert_eq!(gpu.detail["Temperature"], "-8 C");
+        assert_eq!(gpu.detail[detail_keys::TEMPERATURE], "-8 C");
     }
 
     #[test]
@@ -487,13 +530,13 @@ mod tests {
 
         assert_eq!(gpu.temperature, before.temperature);
         assert_eq!(gpu.utilization, before.utilization);
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH");
-        assert_eq!(gpu.detail["Source: Temperature"], "unavailable");
-        assert!(!gpu.detail.contains_key("Hotspot Temperature"));
+        assert_eq!(gpu.detail[detail_keys::METRICS_SOURCE], "WMI + DXGI + PDH");
+        assert_eq!(gpu.detail[detail_keys::SOURCE_TEMPERATURE], "unavailable");
+        assert!(!gpu.detail.contains_key(detail_keys::HOTSPOT_TEMPERATURE));
         // The typed field must stay unset too, so the exporter omits the
         // series rather than publishing a 0 RPM reading.
         assert!(gpu.fan_speed_rpm.is_none());
-        assert!(!gpu.detail.contains_key("Fan Speed"));
+        assert!(!gpu.detail.contains_key(detail_keys::FAN_SPEED));
     }
 
     #[test]
@@ -502,7 +545,10 @@ mod tests {
         let readout = full_readout();
         apply_to_gpu_info(&mut gpu, &readout);
         apply_to_gpu_info(&mut gpu, &readout);
-        assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH + ADL");
+        assert_eq!(
+            gpu.detail[detail_keys::METRICS_SOURCE],
+            "WMI + DXGI + PDH + ADL"
+        );
     }
 
     #[test]
@@ -545,7 +591,7 @@ mod tests {
         let mut gpus = vec![baseline_gpu(), baseline_gpu()];
         augment(&mut gpus);
         for gpu in &gpus {
-            assert_eq!(gpu.detail["Metrics Source"], "WMI + DXGI + PDH");
+            assert_eq!(gpu.detail[detail_keys::METRICS_SOURCE], "WMI + DXGI + PDH");
             assert_eq!(gpu.temperature, 0);
         }
 
@@ -554,7 +600,10 @@ mod tests {
         {
             let mut single = vec![baseline_gpu()];
             augment(&mut single);
-            assert_eq!(single[0].detail["Metrics Source"], "WMI + DXGI + PDH");
+            assert_eq!(
+                single[0].detail[detail_keys::METRICS_SOURCE],
+                "WMI + DXGI + PDH"
+            );
             assert_eq!(single[0].temperature, 0);
         }
     }

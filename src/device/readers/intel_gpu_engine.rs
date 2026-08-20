@@ -35,6 +35,7 @@
 //! `GpuInfo` with `utilization = 0.0` and an explanatory `detail`
 //! entry. Adding the PMU fallback is tracked as follow-up work.
 
+use crate::device::detail_keys;
 use crate::device::readers::intel_gpu_sysfs::read_u64;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -162,7 +163,7 @@ pub struct EngineReadout {
     /// the seeding call.
     pub per_class: Vec<(&'static str, f64)>,
     /// Set to `Some(msg)` when the reader should surface an explanatory
-    /// `detail["Utilization"] = msg` entry; `None` once engine data is
+    /// `detail[detail_keys::UTILIZATION] = msg` entry; `None` once engine data is
     /// available.
     pub status_note: Option<&'static str>,
 }
@@ -364,19 +365,19 @@ pub fn refresh_with_lock(state: &Mutex<EngineState>, device_dir: &Path) -> Engin
 }
 
 /// Fold an [`EngineReadout`] into a `detail` map. Adds one
-/// `"Engine: <class>"` entry per known engine class and, when needed,
-/// an explanatory `"Utilization"` note. Idempotent for any given
+/// `"engine_<class>"` entry per known engine class and, when needed,
+/// an explanatory `"utilization"` note. Idempotent for any given
 /// readout — the keys are deterministic given the discovered counter
 /// set.
 pub fn apply_engine_readout(detail: &mut HashMap<String, String>, readout: &EngineReadout) {
     if let Some(note) = readout.status_note {
-        detail.insert("Utilization".to_string(), note.to_string());
+        detail.insert(detail_keys::UTILIZATION.to_string(), note.to_string());
     } else {
         // Engine data is live for this refresh — no static note.
-        detail.remove("Utilization");
+        detail.remove(detail_keys::UTILIZATION);
     }
     for (class, pct) in &readout.per_class {
-        let key = format!("Engine: {class}");
+        let key = detail_keys::engine(class);
         detail.insert(key, format!("{pct:.2}%"));
     }
 }

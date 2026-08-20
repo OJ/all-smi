@@ -27,6 +27,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 // Import furiosa-smi-rs if available on Linux
+use crate::device::detail_keys;
 #[cfg(all(target_os = "linux", feature = "furiosa-smi-rs"))]
 use furiosa_smi_rs::list_devices;
 
@@ -184,20 +185,20 @@ impl FuriosaNpuReader {
                 for device in devices_to_process {
                     // Build detail HashMap using DetailBuilder
                     let mut builder = DetailBuilder::new()
-                        .insert("serial_number", &device.device_sn)
-                        .insert("firmware_version", &device.firmware)
-                        .insert("pci_bdf", &device.pci_bdf)
-                        .insert("pci_dev", &device.pci_dev)
-                        .insert("architecture", device.arch.to_uppercase())
-                        .insert("core_count", "8")
-                        .insert("pe_count", "64K")
-                        .insert("memory_bandwidth", "1.63TB/s")
-                        .insert("on_chip_sram", "256MB");
+                        .insert(detail_keys::SERIAL_NUMBER, &device.device_sn)
+                        .insert(detail_keys::FIRMWARE_VERSION, &device.firmware)
+                        .insert(detail_keys::PCI_BDF, &device.pci_bdf)
+                        .insert(detail_keys::PCI_DEV, &device.pci_dev)
+                        .insert(detail_keys::ARCHITECTURE, device.arch.to_uppercase())
+                        .insert(detail_keys::CORE_COUNT, "8")
+                        .insert(detail_keys::PE_COUNT, "64K")
+                        .insert(detail_keys::MEMORY_BANDWIDTH, "1.63TB/s")
+                        .insert(detail_keys::ON_CHIP_SRAM, "256MB");
 
                     // Only add pert_version if available (Warboy has it, RNGD may not)
                     if !device.pert.is_empty() {
                         builder = builder
-                            .insert("pert_version", &device.pert)
+                            .insert(detail_keys::PERT_VERSION, &device.pert)
                             .insert_lib_info("PERT", Some(&device.pert));
                     }
 
@@ -233,12 +234,15 @@ impl FuriosaNpuReader {
                     if let Ok(info) = device.device_info() {
                         // Build detail HashMap using DetailBuilder
                         let detail = DetailBuilder::new()
-                            .insert("serial_number", info.serial())
-                            .insert("firmware_version", &info.firmware_version().to_string())
-                            .insert("architecture", format!("{:?}", info.arch()))
-                            .insert("core_count", &info.core_num().to_string())
-                            .insert("bdf", info.bdf())
-                            .insert("numa_node", &info.numa_node().to_string())
+                            .insert(detail_keys::SERIAL_NUMBER, info.serial())
+                            .insert(
+                                detail_keys::FIRMWARE_VERSION,
+                                &info.firmware_version().to_string(),
+                            )
+                            .insert(detail_keys::ARCHITECTURE, format!("{:?}", info.arch()))
+                            .insert(detail_keys::CORE_COUNT, &info.core_num().to_string())
+                            .insert(detail_keys::BDF, info.bdf())
+                            .insert(detail_keys::NUMA_NODE, &info.numa_node().to_string())
                             // Add unified AI acceleration library labels
                             .insert_lib_info("PERT", Some(&info.pert_version().to_string()))
                             .build();
@@ -432,7 +436,7 @@ fn create_gpu_info_from_cli_cached(
 ) -> Option<GpuInfo> {
     // Clone static detail and add dynamic governor field
     let mut detail = static_info.detail.clone();
-    detail.insert("governor".to_string(), device.governor.clone());
+    detail.insert(detail_keys::GOVERNOR.to_string(), device.governor.clone());
 
     // Parse dynamic metrics only
     let temperature = parse_temperature(&device.temperature).unwrap_or_else(|| {
@@ -561,8 +565,8 @@ fn create_gpu_info_from_device_2025_cached(
 
     // Clone static detail and add dynamic fields
     let mut detail = static_info.detail.clone();
-    detail.insert("governor".to_string(), format!("{governor}"));
-    detail.insert("frequency".to_string(), format!("{freq_mhz}MHz"));
+    detail.insert(detail_keys::GOVERNOR.to_string(), format!("{governor}"));
+    detail.insert(detail_keys::FREQUENCY.to_string(), format!("{freq_mhz}MHz"));
 
     let avg_util = compute_avg_pe_utilization(utilization);
 
@@ -570,7 +574,9 @@ fn create_gpu_info_from_device_2025_cached(
     let (used_memory, total_memory) = (0u64, FURIOSA_HBM3_MEMORY_BYTES);
 
     // Extract core_num from static detail for gpu_core_count
-    let gpu_core_count = detail.get("core_count").and_then(|s| s.parse::<u32>().ok());
+    let gpu_core_count = detail
+        .get(detail_keys::CORE_COUNT)
+        .and_then(|s| s.parse::<u32>().ok());
 
     Some(GpuInfo {
         uuid: static_info.uuid.clone().unwrap_or_default(),
@@ -624,23 +630,35 @@ fn create_gpu_info_from_device_2025(
     let mut detail = HashMap::new();
 
     // Add device details from DeviceInfo using 2025.3.0 API methods
-    detail.insert("serial_number".to_string(), info.serial());
+    detail.insert(detail_keys::SERIAL_NUMBER.to_string(), info.serial());
     detail.insert(
-        "firmware_version".to_string(),
+        detail_keys::FIRMWARE_VERSION.to_string(),
         info.firmware_version().to_string(),
     );
-    detail.insert("architecture".to_string(), format!("{:?}", info.arch()));
-    detail.insert("core_count".to_string(), info.core_num().to_string());
-    detail.insert("bdf".to_string(), info.bdf());
-    detail.insert("numa_node".to_string(), info.numa_node().to_string());
+    detail.insert(
+        detail_keys::ARCHITECTURE.to_string(),
+        format!("{:?}", info.arch()),
+    );
+    detail.insert(
+        detail_keys::CORE_COUNT.to_string(),
+        info.core_num().to_string(),
+    );
+    detail.insert(detail_keys::BDF.to_string(), info.bdf());
+    detail.insert(
+        detail_keys::NUMA_NODE.to_string(),
+        info.numa_node().to_string(),
+    );
 
     // Add performance details
-    detail.insert("governor".to_string(), format!("{governor}"));
-    detail.insert("frequency".to_string(), format!("{freq_mhz}MHz"));
+    detail.insert(detail_keys::GOVERNOR.to_string(), format!("{governor}"));
+    detail.insert(detail_keys::FREQUENCY.to_string(), format!("{freq_mhz}MHz"));
 
     // Add unified AI acceleration library labels using PERT version
-    detail.insert("lib_name".to_string(), "PERT".to_string());
-    detail.insert("lib_version".to_string(), info.pert_version().to_string());
+    detail.insert(detail_keys::LIB_NAME.to_string(), "PERT".to_string());
+    detail.insert(
+        detail_keys::LIB_VERSION.to_string(),
+        info.pert_version().to_string(),
+    );
 
     let avg_util = compute_avg_pe_utilization(utilization);
 

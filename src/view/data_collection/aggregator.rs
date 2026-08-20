@@ -16,6 +16,7 @@ use std::time::Instant;
 
 use crate::app_state::AppState;
 use crate::common::config::AppConfig;
+use crate::device::detail_keys;
 use crate::metrics::energy::EnergyKey;
 
 /// Aggregates data from multiple sources and manages history tracking
@@ -165,7 +166,7 @@ impl DataAggregator {
         let has_gpu_data = !state.gpu_info.is_empty();
         let is_apple_silicon = state.gpu_info.iter().any(|gpu| {
             gpu.detail
-                .get("architecture")
+                .get(detail_keys::ARCHITECTURE)
                 .map(|arch| arch == "Apple Silicon")
                 .unwrap_or(false)
         });
@@ -359,7 +360,7 @@ impl DataAggregator {
 fn detect_apple_silicon(state: &AppState) -> bool {
     state.gpu_info.iter().any(|gpu| {
         gpu.detail
-            .get("architecture")
+            .get(detail_keys::ARCHITECTURE)
             .map(|arch| arch == "Apple Silicon")
             .unwrap_or(false)
     })
@@ -372,7 +373,7 @@ fn current_package_power_watts(state: &AppState) -> f64 {
             .iter()
             .find_map(|gpu| {
                 gpu.detail
-                    .get("combined_power_mw")
+                    .get(detail_keys::COMBINED_POWER_MW)
                     .and_then(|value| value.parse::<f64>().ok())
                     .map(|mw| mw / 1000.0)
             })

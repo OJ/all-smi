@@ -36,6 +36,7 @@ use nvml_wrapper::Nvml;
 use nvml_wrapper::enum_wrappers::device::HostVgpuMode;
 use nvml_wrapper::error::{nvml_try, nvml_try_count};
 
+use crate::device::detail_keys;
 use crate::device::types::{VgpuHostInfo, VgpuInfo};
 use crate::utils::get_hostname;
 
@@ -125,9 +126,9 @@ pub fn collect_vgpu_info(nvml: &Nvml) -> Vec<VgpuHostInfo> {
             .collect();
 
         let mut detail = HashMap::new();
-        detail.insert("vgpu_capable".to_string(), "true".to_string());
+        detail.insert(detail_keys::VGPU_CAPABLE.to_string(), "true".to_string());
         if is_arr_supported {
-            detail.insert("arr_supported".to_string(), "true".to_string());
+            detail.insert(detail_keys::ARR_SUPPORTED.to_string(), "true".to_string());
         }
 
         out.push(VgpuHostInfo {

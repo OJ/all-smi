@@ -16,6 +16,7 @@ use super::common::CommonNpuExporter;
 use super::exporter_trait::{CommonNpuMetrics, NpuExporter};
 use crate::api::metrics::MetricBuilder;
 use crate::device::GpuInfo;
+use crate::device::detail_keys;
 
 /// Intel Gaudi NPU-specific metric exporter
 pub struct GaudiExporter {
@@ -49,7 +50,7 @@ impl GaudiExporter {
             .metric("all_smi_gaudi_device_info", &device_labels, 1);
 
         // Export internal name if available (e.g., HL-325L)
-        if let Some(internal_name) = info.detail.get("Internal Name") {
+        if let Some(internal_name) = info.detail.get(detail_keys::INTERNAL_NAME) {
             let internal_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -71,7 +72,7 @@ impl GaudiExporter {
         let index_str = index.to_string();
 
         // Export Habana driver version if available
-        if let Some(driver_version) = info.detail.get("lib_version") {
+        if let Some(driver_version) = info.detail.get(detail_keys::LIB_VERSION) {
             let driver_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -189,7 +190,7 @@ impl GaudiExporter {
             );
 
         // Power limit max if available
-        if let Some(power_max_str) = info.detail.get("power_limit_max")
+        if let Some(power_max_str) = info.detail.get(detail_keys::POWER_LIMIT_MAX)
             && let Ok(power_max) = power_max_str.parse::<f64>()
         {
             builder

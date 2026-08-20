@@ -23,10 +23,10 @@
 //! and utilization. Engine-busy is delta-computed from
 //! sysfs counters by [`super::intel_gpu_engine`]: `max(render,
 //! compute)` becomes `GpuInfo.utilization`, the per-class breakdown
-//! lands in `detail["Engine: <class>"]`. The first refresh per card
+//! lands in `detail["engine_<class>"]`. The first refresh per card
 //! is a seeding call returning `0.0`; real values appear from the
 //! second refresh. When the kernel exposes no engine counters,
-//! `detail["Utilization"]` carries the note in
+//! `detail[detail_keys::UTILIZATION]` carries the note in
 //! `intel_gpu_engine::ENGINE_UNAVAILABLE_NOTE`. Xe cards then fall back to
 //! GT active residency derived from `gtidle/idle_residency_ms`; the PMU
 //! fallback remains deferred. Intel client GPUs have no MIG/vGPU equivalent.
@@ -48,6 +48,7 @@ use crate::common::paths::cache_dir;
 #[cfg(feature = "cli")]
 use crate::common::secure_write::write_atomic_secure;
 use crate::device::GpuReader;
+use crate::device::detail_keys;
 use crate::device::readers::common_cache::{DeviceStaticInfo, MAX_DEVICES};
 use crate::device::readers::intel_gpu_engine::{
     EngineState, apply_engine_readout, refresh_with_lock,
@@ -128,7 +129,7 @@ struct IntelGpuCard {
 }
 
 /// Render the discrete/integrated classification as the string we put in
-/// `detail["Variant"]`.
+/// `detail[detail_keys::VARIANT]`.
 fn variant_label(variant: MemoryVariant) -> &'static str {
     match variant {
         MemoryVariant::Discrete => "Discrete",
@@ -356,16 +357,19 @@ impl IntelGpuReader {
             let name = resolve_device_name(&device_dir, card.device_id);
 
             let mut detail = HashMap::new();
-            detail.insert("Device ID".to_string(), format!("{:#06x}", card.device_id));
             detail.insert(
-                "Variant".to_string(),
+                detail_keys::DEVICE_ID.to_string(),
+                format!("{:#06x}", card.device_id),
+            );
+            detail.insert(
+                detail_keys::VARIANT.to_string(),
                 variant_label(card.variant).to_string(),
             );
             if !card.driver.is_empty() {
-                detail.insert("Driver".to_string(), card.driver.clone());
+                detail.insert(detail_keys::DRIVER.to_string(), card.driver.clone());
             }
             if let Some(bus) = read_pci_bus_id(&device_dir) {
-                detail.insert("PCI Bus".to_string(), bus);
+                detail.insert(detail_keys::PCI_BUS.to_string(), bus);
             }
             // Architecture / SYCL classification — derived from the
             // marketing name so downstream consumers (Backend.AI's
@@ -376,22 +380,25 @@ impl IntelGpuReader {
             // stays platform-agnostic and shareable with the Windows
             // reader.
             let arch = classify_intel_architecture(&name);
-            detail.insert("Architecture".to_string(), arch.label().to_string());
             detail.insert(
-                "SYCL Capable".to_string(),
+                detail_keys::ARCHITECTURE.to_string(),
+                arch.label().to_string(),
+            );
+            detail.insert(
+                detail_keys::SYCL_CAPABLE.to_string(),
                 arch.sycl_capable_label().to_string(),
             );
-            // The `"Utilization"` detail entry is populated dynamically
+            // The `"utilization"` detail entry is populated dynamically
             // by `get_gpu_info` via the engine-busy refresh path.
             if card.variant == MemoryVariant::Integrated {
                 detail.insert(
-                    "Memory".to_string(),
+                    detail_keys::MEMORY.to_string(),
                     "Shared system memory (no dedicated VRAM)".to_string(),
                 );
             }
             // Baseline `Metrics Source`; L0 augmentation may upgrade it.
             detail.insert(
-                "Metrics Source".to_string(),
+                detail_keys::METRICS_SOURCE.to_string(),
                 "sysfs (engine counters)".to_string(),
             );
 
@@ -458,7 +465,7 @@ impl GpuReader for IntelGpuReader {
             // fact the BAR2 size heuristic.
             if total_from_bar2 {
                 detail.insert(
-                    "Source: Memory".to_string(),
+                    detail_keys::SOURCE_MEMORY.to_string(),
                     "PCI BAR2 size (xe)".to_string(),
                 );
             }
@@ -478,7 +485,10 @@ impl GpuReader for IntelGpuReader {
                 .clamp(0.0, MAX_GPU_POWER_WATTS);
                 if derived > 0.0 {
                     power_consumption = derived;
-                    detail.insert("Source: Power".to_string(), "energy delta (xe)".to_string());
+                    detail.insert(
+                        detail_keys::SOURCE_POWER.to_string(),
+                        "energy delta (xe)".to_string(),
+                    );
                 }
             }
 
@@ -494,7 +504,7 @@ impl GpuReader for IntelGpuReader {
                 {
                     used_memory = fdinfo_vram.min(total_memory);
                     detail.insert(
-                        "Source: Memory".to_string(),
+                        detail_keys::SOURCE_MEMORY.to_string(),
                         if total_from_bar2 {
                             "fdinfo used, PCI BAR2 total (xe)".to_string()
                         } else {

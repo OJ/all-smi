@@ -25,6 +25,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
 
+use crate::device::detail_keys;
 use crate::device::readers::intel_gpu_engine::{ENGINE_UNAVAILABLE_NOTE, EngineReadout};
 use crate::device::readers::intel_gpu_sysfs::read_gtidle_ms;
 
@@ -66,16 +67,19 @@ pub fn apply_fallback(
     match refresh_with_lock(state, device_dir) {
         GtidleReadout::Available(value) => {
             *utilization = value;
-            detail.remove("Utilization");
+            detail.remove(detail_keys::UTILIZATION);
             detail.insert(
-                "Source: Utilization".to_string(),
+                detail_keys::SOURCE_UTILIZATION.to_string(),
                 "Xe GT idle residency".to_string(),
             );
         }
         GtidleReadout::Seeded => {
-            detail.insert("Utilization".to_string(), GTIDLE_SEEDING_NOTE.to_string());
             detail.insert(
-                "Source: Utilization".to_string(),
+                detail_keys::UTILIZATION.to_string(),
+                GTIDLE_SEEDING_NOTE.to_string(),
+            );
+            detail.insert(
+                detail_keys::SOURCE_UTILIZATION.to_string(),
                 "Xe GT idle residency (seeded)".to_string(),
             );
         }
@@ -267,7 +271,7 @@ mod tests {
         write_gt(dir.path(), 0, 0);
         let state = Mutex::new(GtidleState::empty());
         let mut detail = HashMap::from([(
-            "Source: Utilization".to_string(),
+            detail_keys::SOURCE_UTILIZATION.to_string(),
             "DRM engine counters".to_string(),
         )]);
         let mut utilization = 0.0;
@@ -283,7 +287,9 @@ mod tests {
 
         assert_eq!(utilization, 0.0);
         assert_eq!(
-            detail.get("Source: Utilization").map(String::as_str),
+            detail
+                .get(detail_keys::SOURCE_UTILIZATION)
+                .map(String::as_str),
             Some("DRM engine counters")
         );
         assert!(state.lock().unwrap().samples.iter().all(Option::is_none));
@@ -306,10 +312,13 @@ mod tests {
         let state = Mutex::new(seeded_state);
         let mut detail = HashMap::from([
             (
-                "Utilization".to_string(),
+                detail_keys::UTILIZATION.to_string(),
                 ENGINE_UNAVAILABLE_NOTE.to_string(),
             ),
-            ("Source: Utilization".to_string(), "unavailable".to_string()),
+            (
+                detail_keys::SOURCE_UTILIZATION.to_string(),
+                "unavailable".to_string(),
+            ),
         ]);
         let mut utilization = 0.0;
         apply_fallback(
@@ -322,9 +331,11 @@ mod tests {
         );
 
         assert_eq!(utilization, 0.0);
-        assert!(!detail.contains_key("Utilization"));
+        assert!(!detail.contains_key(detail_keys::UTILIZATION));
         assert_eq!(
-            detail.get("Source: Utilization").map(String::as_str),
+            detail
+                .get(detail_keys::SOURCE_UTILIZATION)
+                .map(String::as_str),
             Some("Xe GT idle residency")
         );
     }

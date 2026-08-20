@@ -208,12 +208,13 @@ fn render_narrow_fallback(model: &TopologyModel) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::detail_keys;
     use crate::device::{GpuInfo, NvLinkRemoteDevice, NvLinkRemoteType};
     use std::collections::HashMap;
 
     fn mk_gpu(index: u32, numa: Option<i32>, links: u32) -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), index.to_string());
+        detail.insert(detail_keys::INDEX.to_string(), index.to_string());
         GpuInfo {
             uuid: format!("GPU-{index}"),
             time: String::new(),
