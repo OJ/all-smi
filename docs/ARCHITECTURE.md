@@ -190,10 +190,10 @@ pub trait MetricsExporter: Send + Sync {
 
 ### GPU Reader Implementations
 
-#### Apple Silicon (`src/device/readers/apple_silicon.rs`)
-- Uses `powermetrics` command for hardware metrics
-- Integrates Metal framework for GPU utilization
-- Requires sudo privileges for hardware access
+#### Apple Silicon (`src/device/readers/apple_silicon_native.rs`)
+- Uses the native IOReport API (`src/device/macos_native/ioreport.rs`) for energy counters and CPU/GPU residency
+- Reads temperature and system power from the SMC (`src/device/macos_native/smc.rs`)
+- No sudo and no external `powermetrics` process
 - Provides unified memory metrics
 
 #### NVIDIA (`src/device/readers/nvidia.rs`)
@@ -233,7 +233,7 @@ pub trait MetricsExporter: Send + Sync {
 - Background process manager (`src/device/hlsmi/manager.rs`)
 - CSV output parser (`src/device/hlsmi/parser.rs`)
 - Circular buffer for metrics storage (`src/device/hlsmi/store.rs`)
-- Follows the same design pattern as Apple Silicon's PowerMetrics integration
+- Background process manager pattern (an external CLI sampled on an interval, parsed into a store)
 
 #### Google TPU (`src/device/readers/google_tpu.rs`, `src/device/readers/tpu_grpc.rs`)
 - Multi-channel discovery: Sysfs, VFIO, and Environment Variables (for TPU VMs)
@@ -475,8 +475,7 @@ impl Drop for TerminalState {
 ### Privilege Management
 
 1. **Minimal Privileges**
-   - Sudo only for `powermetrics` on macOS
-   - Drops privileges after initialization
+   - No sudo on macOS: IOReport and SMC are readable by an unprivileged process
    - No root required on Linux with proper groups
 
 2. **Process Isolation**
@@ -744,11 +743,8 @@ collector.update_state(app_state, data, &config).await;
 - **Input Size Limits**: 32KB maximum for regex processing
 
 ### 3. Command Injection Prevention
-- **PowerMetrics Validation**:
-  - Sampler name restricted to alphanumeric + underscore
-  - Nice value range validation
-  - Interval range validation
-  - Safe defaults on validation failure
+- **External command validation** (`src/device/common/validation.rs`):
+  - Command names, arguments, and executable paths are checked before any CLI-backed reader spawns a process
 
 ### 4. Authentication Support
 - **Bearer Token**: Via `ALL_SMI_AUTH_TOKEN` environment variable
@@ -924,7 +920,6 @@ The Strategy pattern implementation integrates seamlessly with the existing arch
 
 1. **Shell Scripts**
    ```bash
-   test_powermetrics_cleanup.sh
    test_high_scale.sh
    test_error_recovery.sh
    ```
