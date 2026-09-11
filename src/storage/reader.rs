@@ -17,10 +17,11 @@
 //! This module provides the [`StorageReader`] trait for reading storage/disk
 //! information and a [`LocalStorageReader`] implementation using `sysinfo::Disks`.
 
-use sysinfo::Disks;
+use std::sync::{Mutex, PoisonError};
 
+use crate::storage::disk_cache::DiskCache;
 use crate::storage::info::StorageInfo;
-use crate::utils::{filter_docker_aware_disks, get_hostname};
+use crate::utils::get_hostname;
 
 /// Trait for reading storage/disk information.
 ///
@@ -54,6 +55,17 @@ pub trait StorageReader: Send + Sync {
 /// the `sysinfo` crate. It applies Docker-aware filtering to exclude
 /// system directories and Docker-specific bind mounts.
 ///
+/// The disk list is kept between calls in a [`DiskCache`], so repeated calls
+/// (the `record` loop, a library consumer polling) enumerate the mount table
+/// at most every 30 s rather than on every call; a volume mounted in the
+/// meantime appears within 30 s.
+///
+/// The first call enumerates the mount table on the calling thread and
+/// returns the complete list however long that takes, as this reader always
+/// has. The view and API collection loops use a cache whose first call waits
+/// at most 2 s instead, so a hung mount cannot stall their first tick (see
+/// [`DiskCache::with_blocking_first_list`] and [`DiskCache::new`]).
+///
 /// # Example
 ///
 /// ```rust,no_run
@@ -73,6 +85,7 @@ pub trait StorageReader: Send + Sync {
 #[allow(dead_code)] // Public API struct - used by library consumers
 pub struct LocalStorageReader {
     hostname: String,
+    disks: Mutex<DiskCache>,
 }
 
 impl LocalStorageReader {
@@ -83,6 +96,7 @@ impl LocalStorageReader {
     pub fn new() -> Self {
         Self {
             hostname: get_hostname(),
+            disks: Mutex::new(DiskCache::with_blocking_first_list()),
         }
     }
 }
@@ -95,27 +109,12 @@ impl Default for LocalStorageReader {
 
 impl StorageReader for LocalStorageReader {
     fn get_storage_info(&self) -> Vec<StorageInfo> {
-        let disks = Disks::new_with_refreshed_list();
-
-        let mut filtered_disks = filter_docker_aware_disks(&disks);
-        filtered_disks.sort_by(|a, b| {
-            a.mount_point()
-                .to_string_lossy()
-                .cmp(&b.mount_point().to_string_lossy())
-        });
-
-        filtered_disks
-            .iter()
-            .enumerate()
-            .map(|(index, disk)| StorageInfo {
-                mount_point: disk.mount_point().to_string_lossy().to_string(),
-                total_bytes: disk.total_space(),
-                available_bytes: disk.available_space(),
-                host_id: self.hostname.clone(),
-                hostname: self.hostname.clone(),
-                index: index as u32,
-            })
-            .collect()
+        // The cache holds plain disk data that stays usable after a panic in
+        // another caller, so recover from poisoning instead of propagating it.
+        self.disks
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .storage_info(&self.hostname)
     }
 }
 
@@ -165,6 +164,33 @@ mod tests {
             assert!(!storage.mount_point.is_empty());
             assert!(!storage.hostname.is_empty());
         }
+    }
+
+    /// The first call returns the complete list, the same rows a fresh
+    /// enumeration produces, rather than whatever a bounded wait allowed.
+    #[test]
+    fn the_first_call_returns_the_complete_list() {
+        use crate::utils::filter_docker_aware_disks;
+        use sysinfo::Disks;
+
+        let reader = LocalStorageReader::new();
+        let rows: Vec<String> = reader
+            .get_storage_info()
+            .into_iter()
+            .map(|row| row.mount_point)
+            .collect();
+
+        let disks = Disks::new_with_refreshed_list();
+        let mut expected: Vec<String> = filter_docker_aware_disks(&disks)
+            .iter()
+            .map(|disk| disk.mount_point().to_string_lossy().into_owned())
+            .collect();
+        expected.sort();
+        if rows.len() != expected.len() {
+            // The mount table changed between the two enumerations.
+            return;
+        }
+        assert_eq!(rows, expected);
     }
 
     #[test]

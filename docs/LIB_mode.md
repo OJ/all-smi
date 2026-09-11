@@ -181,7 +181,7 @@ fn main() -> Result<()> {
 | `get_process_info()` | `Vec<ProcessInfo>` | Get GPU process information |
 | `get_cpu_info()` | `Vec<CpuInfo>` | Get CPU information |
 | `get_memory_info()` | `Vec<MemoryInfo>` | Get system memory information |
-| `get_storage_info()` | `Vec<StorageInfo>` | Get disk/storage information |
+| `get_storage_info()` | `Vec<StorageInfo>` | Get disk/storage information (the first call returns the complete list however long enumeration takes; after that the mount table is re-enumerated in the background at most every 30 s and capacities are refreshed on every call) |
 | `get_chassis_info()` | `Option<ChassisInfo>` | Get chassis-level information |
 | `has_gpus()` | `bool` | Check if any GPUs are detected |
 | `has_cpu_monitoring()` | `bool` | Check if CPU monitoring is available |
@@ -403,8 +403,8 @@ fn list_gpu_processes() -> Result<()> {
 | `ppid` | `u32` | Parent process ID |
 | `threads` | `u32` | Number of threads |
 | `uses_gpu` | `bool` | Whether process uses GPU |
-| `priority` | `i32` | Process priority |
-| `nice_value` | `i32` | Nice value |
+| `priority` | `i32` | Process priority (on macOS the task's base priority; 20 when it cannot be read) |
+| `nice_value` | `i32` | Nice value (on macOS from `getpriority`; 0 when it cannot be read) |
 | `gpu_utilization` | `f64` | GPU utilization percentage |
 
 ### CpuInfo
