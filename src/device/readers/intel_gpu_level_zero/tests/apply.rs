@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::*;
+use crate::device::keys;
 use crate::device::types::{GpuInfo, MAX_GPU_FAN_RPM};
 use std::collections::HashMap;
 
@@ -58,14 +59,14 @@ fn linux_fresh_sysman_overwrites_fields() {
     gpu.frequency = 1900;
     gpu.power_consumption = 80.0;
     gpu.detail.insert(
-        "Metrics Source".to_string(),
+        keys::METRICS_SOURCE.to_string(),
         "sysfs (engine counters)".to_string(),
     );
     // Mirror what the Linux sysfs baseline actually produces: the typed
     // field and the detail string are written together from one hwmon read.
     gpu.fan_speed_rpm = Some(1400);
     gpu.detail
-        .insert("Fan Speed".to_string(), "1400 RPM".to_string());
+        .insert(keys::FAN_SPEED.to_string(), "1400 RPM".to_string());
 
     let readout = LevelZeroReadout {
         engines: vec![("compute (XMX)", 80.0), ("render", 30.0)],
@@ -94,26 +95,26 @@ fn linux_fresh_sysman_overwrites_fields() {
     assert_eq!(gpu.used_memory, 4 * 1024 * 1024 * 1024);
     assert_eq!(gpu.total_memory, 12 * 1024 * 1024 * 1024);
     assert_eq!(
-        gpu.detail.get("Source: Memory Used").map(String::as_str),
+        gpu.detail.get(keys::SOURCE_MEMORY_USED).map(String::as_str),
         Some("Level Zero Sysman")
     );
     assert_eq!(
-        gpu.detail.get("Power (L0)").map(String::as_str),
+        gpu.detail.get(keys::POWER_L0).map(String::as_str),
         Some("120.50 W")
     );
     // The sysfs qualifier survives. Level Zero used to assign this string
     // rather than append to it, so "(engine counters)" was lost the moment
     // Sysman produced a reading.
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail.get(keys::METRICS_SOURCE).map(String::as_str),
         Some("sysfs (engine counters) + Level Zero Sysman")
     );
     assert_eq!(
-        gpu.detail.get("Source: Utilization").map(String::as_str),
+        gpu.detail.get(keys::SOURCE_UTILIZATION).map(String::as_str),
         Some("Level Zero Sysman")
     );
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(keys::FAN_SPEED).map(String::as_str),
         Some("1400 RPM"),
         "Linux hwmon fan must keep priority over L0 fan"
     );
@@ -163,7 +164,7 @@ fn shared_memory_does_not_fabricate_vram_budget() {
     assert_eq!(gpu.used_memory, 0);
     assert_eq!(gpu.total_memory, 0);
     assert_eq!(
-        gpu.detail.get("Memory (L0)").map(String::as_str),
+        gpu.detail.get(keys::MEMORY_L0).map(String::as_str),
         Some("Shared/system memory; dedicated VRAM budget unavailable")
     );
 }
@@ -172,7 +173,7 @@ fn shared_memory_does_not_fabricate_vram_budget() {
 fn windows_overwrites_wmi_gaps() {
     let mut gpu = make_baseline_gpu_info();
     gpu.detail
-        .insert("Metrics Source".to_string(), "WMI".to_string());
+        .insert(keys::METRICS_SOURCE.to_string(), "WMI".to_string());
     let readout = LevelZeroReadout {
         engines: vec![("compute (XMX)", 65.0), ("render", 20.0)],
         primary_engine_utilization: Some(FreshValue::level_zero(65.0)),
@@ -193,14 +194,14 @@ fn windows_overwrites_wmi_gaps() {
     assert_eq!(gpu.temperature, 71);
     assert_eq!(gpu.frequency, 2200);
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(keys::FAN_SPEED).map(String::as_str),
         Some("1600 RPM (40%)")
     );
     // The duty cycle only ever rides in the detail string; the typed field
     // carries the tachometer reading on its own.
     assert_eq!(gpu.fan_speed_rpm, Some(1600));
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail.get(keys::METRICS_SOURCE).map(String::as_str),
         Some("WMI + Level Zero Sysman")
     );
 }
@@ -222,7 +223,10 @@ fn duty_cycle_only_fan_leaves_the_typed_field_unset() {
     };
     apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
 
-    assert_eq!(gpu.detail.get("Fan Speed").map(String::as_str), Some("40%"));
+    assert_eq!(
+        gpu.detail.get(keys::FAN_SPEED).map(String::as_str),
+        Some("40%")
+    );
     assert!(gpu.fan_speed_rpm.is_none());
 }
 
@@ -235,7 +239,7 @@ fn windows_duty_cycle_only_fan_clears_a_stale_tachometer_reading() {
     let mut gpu = make_baseline_gpu_info();
     gpu.fan_speed_rpm = Some(1450);
     gpu.detail
-        .insert("Fan Speed".to_string(), "1450 RPM".to_string());
+        .insert(keys::FAN_SPEED.to_string(), "1450 RPM".to_string());
     let readout = LevelZeroReadout {
         fan: Some(LevelZeroFanReadout {
             rpm: None,
@@ -246,7 +250,10 @@ fn windows_duty_cycle_only_fan_clears_a_stale_tachometer_reading() {
     };
     apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
 
-    assert_eq!(gpu.detail.get("Fan Speed").map(String::as_str), Some("40%"));
+    assert_eq!(
+        gpu.detail.get(keys::FAN_SPEED).map(String::as_str),
+        Some("40%")
+    );
     assert!(gpu.fan_speed_rpm.is_none());
 }
 
@@ -269,7 +276,7 @@ fn linux_l0_fan_fills_a_gap_the_hwmon_baseline_left() {
 
     assert_eq!(gpu.fan_speed_rpm, Some(1800));
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(keys::FAN_SPEED).map(String::as_str),
         Some("1800 RPM")
     );
 }
@@ -293,7 +300,7 @@ fn a_garbled_l0_fan_reading_is_clamped_before_either_write() {
 
     assert_eq!(gpu.fan_speed_rpm, Some(MAX_GPU_FAN_RPM));
     assert_eq!(
-        gpu.detail.get("Fan Speed").map(String::as_str),
+        gpu.detail.get(keys::FAN_SPEED).map(String::as_str),
         Some(format!("{MAX_GPU_FAN_RPM} RPM").as_str())
     );
 }
@@ -303,7 +310,7 @@ fn no_data_keeps_baseline() {
     let mut gpu = make_baseline_gpu_info();
     gpu.utilization = 42.0;
     gpu.detail
-        .insert("Metrics Source".to_string(), "WMI".to_string());
+        .insert(keys::METRICS_SOURCE.to_string(), "WMI".to_string());
 
     apply_to_gpu_info(
         &mut gpu,
@@ -313,10 +320,10 @@ fn no_data_keeps_baseline() {
 
     assert_eq!(gpu.utilization, 42.0);
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail.get(keys::METRICS_SOURCE).map(String::as_str),
         Some("WMI")
     );
-    assert!(!gpu.detail.contains_key("Power (L0)"));
+    assert!(!gpu.detail.contains_key(keys::POWER_L0));
 }
 
 // ---------------------------------------------------------------------
@@ -332,11 +339,11 @@ fn integrated_after_dxgi() -> GpuInfo {
     gpu.used_memory = 6 * 1024 * 1024 * 1024;
     gpu.total_memory = 19_202_415_943;
     gpu.detail
-        .insert("Metrics Source".to_string(), "WMI".to_string());
+        .insert(keys::METRICS_SOURCE.to_string(), "WMI".to_string());
     gpu.detail
-        .insert("Source: Memory".to_string(), "DXGI (shared)".to_string());
+        .insert(keys::SOURCE_MEMORY.to_string(), "DXGI (shared)".to_string());
     gpu.detail.insert(
-        "Source: Memory Used".to_string(),
+        keys::SOURCE_MEMORY_USED.to_string(),
         "PDH (shared)".to_string(),
     );
     crate::device::readers::detail_keys::note_metrics_source(&mut gpu.detail, "DXGI");
@@ -365,19 +372,19 @@ fn a_dedicated_carve_out_never_replaces_a_shared_aperture() {
     assert_eq!(gpu.total_memory, 19_202_415_943);
     assert_eq!(gpu.used_memory, 6 * 1024 * 1024 * 1024);
     assert_eq!(
-        gpu.detail.get("Source: Memory").map(String::as_str),
+        gpu.detail.get(keys::SOURCE_MEMORY).map(String::as_str),
         Some("DXGI (shared)")
     );
     assert_eq!(
-        gpu.detail.get("Source: Memory Used").map(String::as_str),
+        gpu.detail.get(keys::SOURCE_MEMORY_USED).map(String::as_str),
         Some("PDH (shared)")
     );
     // Not discarded: the carve-out is real, it is just not the capacity.
     assert_eq!(
-        gpu.detail.get("VRAM Dedicated (L0)").map(String::as_str),
+        gpu.detail.get(keys::VRAM_DEDICATED_L0).map(String::as_str),
         Some("134217728 bytes")
     );
-    assert!(!gpu.detail.contains_key("VRAM Total"));
+    assert!(!gpu.detail.contains_key(keys::VRAM_TOTAL));
     // The rest of the readout still lands.
     assert_eq!(gpu.temperature, 48);
 }
@@ -388,9 +395,9 @@ fn a_dedicated_carve_out_never_replaces_a_shared_aperture() {
 fn a_discrete_card_still_takes_its_sysman_total() {
     let mut gpu = make_baseline_gpu_info();
     gpu.detail
-        .insert("Source: Memory".to_string(), "WMI".to_string());
+        .insert(keys::SOURCE_MEMORY.to_string(), "WMI".to_string());
     gpu.detail
-        .insert("Source: Memory Used".to_string(), "PDH".to_string());
+        .insert(keys::SOURCE_MEMORY_USED.to_string(), "PDH".to_string());
     let readout = LevelZeroReadout {
         memory: Some(LevelZeroMemoryReadout {
             used_bytes: 2 * 1024 * 1024 * 1024,
@@ -405,11 +412,11 @@ fn a_discrete_card_still_takes_its_sysman_total() {
     assert_eq!(gpu.total_memory, 12 * 1024 * 1024 * 1024);
     assert_eq!(gpu.used_memory, 2 * 1024 * 1024 * 1024);
     assert_eq!(
-        gpu.detail.get("Source: Memory").map(String::as_str),
+        gpu.detail.get(keys::SOURCE_MEMORY).map(String::as_str),
         Some("Level Zero Sysman")
     );
     assert_eq!(
-        gpu.detail.get("Source: Memory Used").map(String::as_str),
+        gpu.detail.get(keys::SOURCE_MEMORY_USED).map(String::as_str),
         Some("Level Zero Sysman")
     );
 }
@@ -420,7 +427,7 @@ fn a_discrete_card_still_takes_its_sysman_total() {
 fn the_shared_aperture_guard_is_windows_only() {
     let mut gpu = make_baseline_gpu_info();
     gpu.detail
-        .insert("Source: Memory".to_string(), "DXGI (shared)".to_string());
+        .insert(keys::SOURCE_MEMORY.to_string(), "DXGI (shared)".to_string());
     let readout = LevelZeroReadout {
         memory: Some(LevelZeroMemoryReadout {
             used_bytes: 1024,
@@ -453,7 +460,7 @@ fn an_empty_dedicated_readout_leaves_the_total_alone() {
     apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
 
     assert_eq!(gpu.total_memory, 12 * 1024 * 1024 * 1024);
-    assert!(!gpu.detail.contains_key("VRAM Dedicated (L0)"));
+    assert!(!gpu.detail.contains_key(keys::VRAM_DEDICATED_L0));
 }
 
 /// Every layer that ran must still be named. Assigning here is what made a
@@ -468,7 +475,7 @@ fn the_full_windows_stack_is_recorded_in_order() {
     apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
 
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail.get(keys::METRICS_SOURCE).map(String::as_str),
         Some("WMI + DXGI + PDH + Level Zero Sysman")
     );
 }
@@ -485,7 +492,7 @@ fn repeated_polls_do_not_grow_the_metrics_source() {
         apply_to_gpu_info(&mut gpu, &readout, ApplyPlatform::Windows);
     }
     assert_eq!(
-        gpu.detail.get("Metrics Source").map(String::as_str),
+        gpu.detail.get(keys::METRICS_SOURCE).map(String::as_str),
         Some("WMI + DXGI + PDH + Level Zero Sysman")
     );
 }

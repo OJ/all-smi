@@ -62,6 +62,7 @@
 //! power's to `(0, power_range(..).1)`, and ANE's to `(0, ane_range(..).1)`.
 
 use crate::device::GpuInfo;
+use crate::device::keys;
 
 /// Idle floor for temperature sparklines, in °C.
 ///
@@ -84,9 +85,9 @@ pub const POWER_MIN_CEIL_W: f64 = 10.0;
 /// `gpu.detail` keys that may carry an enforced/board power limit in watts,
 /// in preference order. Populated by the NVIDIA and Gaudi readers.
 const POWER_LIMIT_KEYS: [&str; 3] = [
-    "power_limit_current",
-    "power_limit_max",
-    "power_limit_default",
+    keys::POWER_LIMIT_CURRENT,
+    keys::POWER_LIMIT_MAX,
+    keys::POWER_LIMIT_DEFAULT,
 ];
 
 /// Round `v` up to a visually pleasant ceiling of the form `1`, `2`, or
@@ -519,7 +520,7 @@ mod tests {
     #[test]
     fn power_range_prefers_enforced_limit() {
         let mut detail = HashMap::new();
-        detail.insert("power_limit_current".to_string(), "350.00".to_string());
+        detail.insert(keys::POWER_LIMIT_CURRENT.to_string(), "350.00".to_string());
         let g = gpu_with(None, None, None, detail);
         // History peak is ignored when an enforced limit exists.
         assert_eq!(
@@ -531,8 +532,8 @@ mod tests {
     #[test]
     fn power_range_limit_key_priority() {
         let mut detail = HashMap::new();
-        detail.insert("power_limit_max".to_string(), "450".to_string());
-        detail.insert("power_limit_default".to_string(), "400".to_string());
+        detail.insert(keys::POWER_LIMIT_MAX.to_string(), "450".to_string());
+        detail.insert(keys::POWER_LIMIT_DEFAULT.to_string(), "400".to_string());
         let g = gpu_with(None, None, None, detail);
         // current absent -> max preferred over default
         assert_eq!(power_range(std::slice::from_ref(&g), &[]), (0.0, 450.0));
@@ -543,8 +544,8 @@ mod tests {
         // A present-but-invalid power_limit_current must not mask a valid
         // power_limit_max: each key is parsed/validated independently.
         let mut detail = HashMap::new();
-        detail.insert("power_limit_current".to_string(), "0".to_string());
-        detail.insert("power_limit_max".to_string(), "450".to_string());
+        detail.insert(keys::POWER_LIMIT_CURRENT.to_string(), "0".to_string());
+        detail.insert(keys::POWER_LIMIT_MAX.to_string(), "450".to_string());
         let g = gpu_with(None, None, None, detail);
         assert_eq!(power_range(std::slice::from_ref(&g), &[40.0]), (0.0, 450.0));
     }
@@ -555,7 +556,7 @@ mod tests {
         // per-GPU limits (4 × 350 W = 1400 W), not a single GPU's limit. A peak
         // exceeding one GPU's limit must therefore not clip the sparkline.
         let mut detail = HashMap::new();
-        detail.insert("power_limit_current".to_string(), "350".to_string());
+        detail.insert(keys::POWER_LIMIT_CURRENT.to_string(), "350".to_string());
         let gpus: Vec<GpuInfo> = (0..4)
             .map(|_| gpu_with(None, None, None, detail.clone()))
             .collect();
@@ -567,7 +568,7 @@ mod tests {
         // If even one GPU lacks a valid limit, the summed ceiling would
         // understate the budget, so fall back to the nice-rounded peak.
         let mut detail = HashMap::new();
-        detail.insert("power_limit_current".to_string(), "350".to_string());
+        detail.insert(keys::POWER_LIMIT_CURRENT.to_string(), "350".to_string());
         let with_limit = gpu_with(None, None, None, detail);
         let without_limit = gpu_with(None, None, None, HashMap::new());
         let gpus = [with_limit, without_limit];
@@ -595,7 +596,7 @@ mod tests {
     #[test]
     fn power_range_ignores_nonpositive_limit() {
         let mut detail = HashMap::new();
-        detail.insert("power_limit_current".to_string(), "0".to_string());
+        detail.insert(keys::POWER_LIMIT_CURRENT.to_string(), "0".to_string());
         let g = gpu_with(None, None, None, detail);
         // A zero limit is invalid -> fall back to nice_ceil over peak.
         assert_eq!(
@@ -612,7 +613,7 @@ mod tests {
         // fall back to the nice-rounded observed peak.
         for bogus in ["inf", "Inf", "infinity", "-inf", "NaN", "nan"] {
             let mut detail = HashMap::new();
-            detail.insert("power_limit_current".to_string(), bogus.to_string());
+            detail.insert(keys::POWER_LIMIT_CURRENT.to_string(), bogus.to_string());
             let g = gpu_with(None, None, None, detail);
             assert_eq!(
                 power_range(std::slice::from_ref(&g), &[40.0]),

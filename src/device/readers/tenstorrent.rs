@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::device::GpuReader;
+use crate::device::keys;
 use crate::device::process_list::{get_all_processes, merge_gpu_processes};
 use crate::device::readers::common_cache::{DetailBuilder, DeviceStaticInfo};
 use crate::device::types::{GpuInfo, ProcessInfo};
@@ -323,11 +324,11 @@ fn extract_static_info(chip: &Chip) -> Option<(DeviceStaticInfo, TenstorrentStat
 
     // Build detail map using DetailBuilder
     let mut builder = DetailBuilder::new()
-        .insert("Board Type", board_type)
-        .insert("Board ID", telem.board_serial_number_hex())
-        .insert("ARC FW Version", telem.arc_fw_version())
-        .insert("ETH FW Version", telem.eth_fw_version())
-        .insert("FW Date", telem.firmware_date());
+        .insert(keys::BOARD_TYPE, board_type)
+        .insert(keys::BOARD_ID, telem.board_serial_number_hex())
+        .insert(keys::ARC_FW_VERSION, telem.arc_fw_version())
+        .insert(keys::ETH_FW_VERSION, telem.eth_fw_version())
+        .insert(keys::FW_DATE, telem.firmware_date());
 
     // Extract PCIe information if available
     if let Ok(Some(device_info)) = chip.get_device_info() {
@@ -339,9 +340,15 @@ fn extract_static_info(chip: &Chip) -> Option<(DeviceStaticInfo, TenstorrentStat
         let pcie_link_gen = format!("{}", device_info.pcie_current_link_gen());
 
         builder = builder
-            .insert("PCIe Address", &pcie_address)
-            .insert("PCIe Vendor ID", format!("0x{:04x}", device_info.vendor))
-            .insert("PCIe Device ID", format!("0x{:04x}", device_info.device_id))
+            .insert(keys::PCIE_ADDRESS, &pcie_address)
+            .insert(
+                keys::PCIE_VENDOR_ID,
+                format!("0x{:04x}", device_info.vendor),
+            )
+            .insert(
+                keys::PCIE_DEVICE_ID,
+                format!("0x{:04x}", device_info.device_id),
+            )
             .insert_pci_info(
                 Some(&pcie_address),
                 Some(&pcie_link_gen),
@@ -360,7 +367,7 @@ fn extract_static_info(chip: &Chip) -> Option<(DeviceStaticInfo, TenstorrentStat
     } else {
         None
     };
-    builder = builder.insert_optional("DDR FW Version", ddr_fw_version);
+    builder = builder.insert_optional(keys::DDR_FW_VERSION, ddr_fw_version);
 
     let spibootrom_fw_version = if telem.spibootrom_fw_version != 0 {
         Some(format!(
@@ -372,7 +379,7 @@ fn extract_static_info(chip: &Chip) -> Option<(DeviceStaticInfo, TenstorrentStat
     } else {
         None
     };
-    builder = builder.insert_optional("SPIBOOTROM FW Version", spibootrom_fw_version);
+    builder = builder.insert_optional(keys::SPIBOOTROM_FW_VERSION, spibootrom_fw_version);
 
     // Determine memory size and TDP based on board type
     let (total_memory, tdp_limit) = determine_memory_and_tdp(board_type);
@@ -469,36 +476,45 @@ fn build_device_details(
 
     // Dynamic telemetry
     detail.insert(
-        "VDD Voltage".to_string(),
+        keys::VDD_VOLTAGE.to_string(),
         format!("{:.3}V", telem.voltage()),
     );
-    detail.insert("Current".to_string(), format!("{:.2}A", telem.current()));
     detail.insert(
-        "ASIC Temperature".to_string(),
+        keys::CURRENT.to_string(),
+        format!("{:.2}A", telem.current()),
+    );
+    detail.insert(
+        keys::ASIC_TEMPERATURE.to_string(),
         format!("{:.1}°C", telem.asic_temperature()),
     );
     detail.insert(
-        "VR Temperature".to_string(),
+        keys::VR_TEMPERATURE.to_string(),
         format!("{:.1}°C", telem.vreg_temperature()),
     );
 
     if telem.board_temperature != 0 {
         detail.insert(
-            "Inlet Temperature".to_string(),
+            keys::INLET_TEMPERATURE.to_string(),
             format!("{:.1}°C", telem.inlet_temperature()),
         );
     }
 
-    detail.insert("AI Clock".to_string(), format!("{}MHz", telem.ai_clk()));
-    detail.insert("ARC Clock".to_string(), format!("{}MHz", telem.arc_clk()));
-    detail.insert("AXI Clock".to_string(), format!("{}MHz", telem.axi_clk()));
+    detail.insert(keys::AI_CLOCK.to_string(), format!("{}MHz", telem.ai_clk()));
+    detail.insert(
+        keys::ARC_CLOCK.to_string(),
+        format!("{}MHz", telem.arc_clk()),
+    );
+    detail.insert(
+        keys::AXI_CLOCK.to_string(),
+        format!("{}MHz", telem.axi_clk()),
+    );
 
     // Add unified AI acceleration library labels if not already present
     detail
-        .entry("lib_name".to_string())
+        .entry(keys::LIB_NAME.to_string())
         .or_insert("Luwen".to_string());
-    if let Some(arc_fw) = detail.get("ARC FW Version") {
-        detail.insert("lib_version".to_string(), arc_fw.clone());
+    if let Some(arc_fw) = detail.get(keys::ARC_FW_VERSION) {
+        detail.insert(keys::LIB_VERSION.to_string(), arc_fw.clone());
     }
 
     detail

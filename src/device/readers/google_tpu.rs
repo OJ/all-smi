@@ -40,6 +40,7 @@
 use crate::device::GpuReader;
 #[cfg(target_os = "linux")]
 use crate::device::common::constants::google_tpu::is_libtpu_available;
+use crate::device::keys;
 #[cfg(target_os = "linux")]
 use crate::device::readers::common_cache::{DetailBuilder, DeviceStaticInfo};
 #[cfg(target_os = "linux")]
@@ -309,19 +310,22 @@ impl GoogleTpuReader {
 
                 // Build detail HashMap using DetailBuilder
                 let detail = DetailBuilder::new()
-                    .insert("Device Index", device.index.to_string())
-                    .insert("Chip Version", &device.chip_version)
-                    .insert("Accelerator Type", &device.accelerator_type)
-                    .insert("Core Count", device.core_count.to_string())
-                    .insert("TensorCore Count", generation.tensor_cores().to_string())
-                    .insert("Memory Type", generation.memory_type())
+                    .insert(keys::DEVICE_INDEX, device.index.to_string())
+                    .insert(keys::CHIP_VERSION, &device.chip_version)
+                    .insert(keys::ACCELERATOR_TYPE, &device.accelerator_type)
+                    .insert(keys::CORE_COUNT, device.core_count.to_string())
                     .insert(
-                        "Total Memory",
+                        keys::TENSORCORE_COUNT,
+                        generation.tensor_cores().to_string(),
+                    )
+                    .insert(keys::MEMORY_TYPE, generation.memory_type())
+                    .insert(
+                        keys::TOTAL_MEMORY,
                         format_memory_size(generation.hbm_size_bytes()),
                     )
-                    .insert("Max Power", format!("{:.0} W", device.power_max))
+                    .insert(keys::MAX_POWER, format!("{:.0} W", device.power_max))
                     .insert_optional(
-                        "TPU Runtime Version",
+                        keys::TPU_RUNTIME_VERSION,
                         if device.tpu_runtime_version.is_empty() {
                             None
                         } else {
@@ -329,9 +333,9 @@ impl GoogleTpuReader {
                         },
                     )
                     // Add unified AI acceleration library labels
-                    .insert("lib_name", "libtpu")
+                    .insert(keys::LIB_NAME, "libtpu")
                     .insert_optional(
-                        "lib_version",
+                        keys::LIB_VERSION,
                         if device.tpu_runtime_version.is_empty() {
                             None
                         } else {
@@ -878,21 +882,24 @@ fn create_gpu_info_from_device(
     } else {
         // Build detail HashMap if no cache available (first call)
         let detail = DetailBuilder::new()
-            .insert("Device Index", device.index.to_string())
-            .insert("Chip Version", &device.chip_version)
-            .insert("Accelerator Type", &device.accelerator_type)
-            .insert("Core Count", device.core_count.to_string())
-            .insert("TensorCore Count", generation.tensor_cores().to_string())
-            .insert("Memory Type", generation.memory_type())
+            .insert(keys::DEVICE_INDEX, device.index.to_string())
+            .insert(keys::CHIP_VERSION, &device.chip_version)
+            .insert(keys::ACCELERATOR_TYPE, &device.accelerator_type)
+            .insert(keys::CORE_COUNT, device.core_count.to_string())
             .insert(
-                "Total Memory",
+                keys::TENSORCORE_COUNT,
+                generation.tensor_cores().to_string(),
+            )
+            .insert(keys::MEMORY_TYPE, generation.memory_type())
+            .insert(
+                keys::TOTAL_MEMORY,
                 format_memory_size(generation.hbm_size_bytes()),
             )
-            .insert("Max Power", format!("{:.0} W", device.power_max))
+            .insert(keys::MAX_POWER, format!("{:.0} W", device.power_max))
             // Add unified AI acceleration library labels
-            .insert("lib_name", "libtpu")
+            .insert(keys::LIB_NAME, "libtpu")
             .insert_optional(
-                "lib_version",
+                keys::LIB_VERSION,
                 if device.tpu_runtime_version.is_empty() {
                     None
                 } else {
@@ -912,32 +919,32 @@ fn create_gpu_info_from_device(
 
     // Dynamic values - update with current readings
     detail.insert(
-        "Current Power".to_string(),
+        keys::CURRENT_POWER.to_string(),
         format!("{:.1} W", device.power_draw),
     );
     detail.insert(
-        "Used Memory".to_string(),
+        keys::USED_MEMORY.to_string(),
         format_memory_size(device.memory_used),
     );
 
     // HLO metrics (from gRPC)
     if let Some(queue_size) = device.hlo_queue_size {
-        detail.insert("HLO Queue Size".to_string(), queue_size.to_string());
+        detail.insert(keys::HLO_QUEUE_SIZE.to_string(), queue_size.to_string());
     }
     if let Some(mean_us) = device.hlo_exec_mean_us {
-        detail.insert("HLO Exec Mean".to_string(), format!("{mean_us:.1} µs"));
+        detail.insert(keys::HLO_EXEC_MEAN.to_string(), format!("{mean_us:.1} µs"));
     }
     if let Some(p50_us) = device.hlo_exec_p50_us {
-        detail.insert("HLO Exec P50".to_string(), format!("{p50_us:.1} µs"));
+        detail.insert(keys::HLO_EXEC_P50.to_string(), format!("{p50_us:.1} µs"));
     }
     if let Some(p90_us) = device.hlo_exec_p90_us {
-        detail.insert("HLO Exec P90".to_string(), format!("{p90_us:.1} µs"));
+        detail.insert(keys::HLO_EXEC_P90.to_string(), format!("{p90_us:.1} µs"));
     }
     if let Some(p95_us) = device.hlo_exec_p95_us {
-        detail.insert("HLO Exec P95".to_string(), format!("{p95_us:.1} µs"));
+        detail.insert(keys::HLO_EXEC_P95.to_string(), format!("{p95_us:.1} µs"));
     }
     if let Some(p999_us) = device.hlo_exec_p999_us {
-        detail.insert("HLO Exec P99.9".to_string(), format!("{p999_us:.1} µs"));
+        detail.insert(keys::HLO_EXEC_P99_9.to_string(), format!("{p999_us:.1} µs"));
     }
 
     // Get memory total - use device reported if available, otherwise use generation default
@@ -1137,17 +1144,23 @@ mod tests {
         assert_eq!(info.hostname, "test-host");
 
         // Check detail fields
-        assert_eq!(info.detail.get("lib_name"), Some(&"libtpu".to_string()));
-        assert_eq!(info.detail.get("lib_version"), Some(&"2.13.0".to_string()));
+        assert_eq!(info.detail.get(keys::LIB_NAME), Some(&"libtpu".to_string()));
+        assert_eq!(
+            info.detail.get(keys::LIB_VERSION),
+            Some(&"2.13.0".to_string())
+        );
 
         // Check HLO metrics in detail
-        assert_eq!(info.detail.get("HLO Queue Size"), Some(&"3".to_string()));
         assert_eq!(
-            info.detail.get("HLO Exec Mean"),
+            info.detail.get(keys::HLO_QUEUE_SIZE),
+            Some(&"3".to_string())
+        );
+        assert_eq!(
+            info.detail.get(keys::HLO_EXEC_MEAN),
             Some(&"125.5 µs".to_string())
         );
         assert_eq!(
-            info.detail.get("HLO Exec P50"),
+            info.detail.get(keys::HLO_EXEC_P50),
             Some(&"100.0 µs".to_string())
         );
     }

@@ -281,12 +281,13 @@ fn center(s: &str, w: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::keys;
     use crate::device::{GpuInfo, NvLinkRemoteDevice, NvLinkRemoteType};
     use std::collections::HashMap;
 
     fn mk_gpu(index: u32, numa: Option<i32>, link_count: u32, switch: bool) -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), index.to_string());
+        detail.insert(keys::INDEX.to_string(), index.to_string());
         let mut links: Vec<NvLinkRemoteDevice> = (0..link_count)
             .map(|i| NvLinkRemoteDevice {
                 link_index: i,

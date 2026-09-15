@@ -153,12 +153,13 @@ fn truncate_line(s: &str, cells: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::keys;
     use crate::device::{GpuInfo, NvLinkRemoteDevice, NvLinkRemoteType};
     use std::collections::HashMap;
 
     fn mk_gpu(index: u32, host: &str, numa: Option<i32>) -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), index.to_string());
+        detail.insert(keys::INDEX.to_string(), index.to_string());
         GpuInfo {
             uuid: format!("GPU-{index}"),
             time: String::new(),

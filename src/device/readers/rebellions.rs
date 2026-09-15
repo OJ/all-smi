@@ -17,6 +17,7 @@ use crate::device::common::execute_command_default;
 use crate::device::common::parsers::{
     parse_device_id, parse_memory_mb_to_bytes, parse_power, parse_temperature, parse_utilization,
 };
+use crate::device::keys;
 use crate::device::readers::common_cache::{DetailBuilder, DeviceStaticInfo};
 use crate::device::types::{GpuInfo, ProcessInfo};
 use crate::utils::get_hostname;
@@ -159,17 +160,17 @@ impl RebellionsNpuReader {
             for device in devices_to_process {
                 // Build detail HashMap using DetailBuilder
                 let detail = DetailBuilder::new()
-                    .insert("Serial ID", &device.sid)
-                    .insert("Firmware Version", &device.fw_ver)
-                    .insert("Device Path", &device.device)
-                    .insert("Board Info", &device.board_info)
+                    .insert(keys::SERIAL_ID, &device.sid)
+                    .insert(keys::FIRMWARE_VERSION, &device.fw_ver)
+                    .insert(keys::DEVICE_PATH, &device.device)
+                    .insert(keys::BOARD_INFO, &device.board_info)
                     .insert_pci_info(
                         Some(&device.pci.bus_id),
                         None, // Rebellions doesn't provide PCIe generation separately
                         Some(&device.pci.link_width),
                     )
-                    .insert("PCI Link Speed", &device.pci.link_speed)
-                    .insert("PCI NUMA Node", &device.pci.numa_node)
+                    .insert(keys::PCI_LINK_SPEED, &device.pci.link_speed)
+                    .insert(keys::PCI_NUMA_NODE, &device.pci.numa_node)
                     .build();
 
                 let static_info = DeviceStaticInfo::with_details(
@@ -368,28 +369,28 @@ fn create_gpu_info_from_device(
     } else {
         // Build detail HashMap if no cache available (first call)
         let detail = DetailBuilder::new()
-            .insert("Serial ID", &device.sid)
-            .insert("Firmware Version", &device.fw_ver)
-            .insert("Device Path", &device.device)
-            .insert("Board Info", &device.board_info)
+            .insert(keys::SERIAL_ID, &device.sid)
+            .insert(keys::FIRMWARE_VERSION, &device.fw_ver)
+            .insert(keys::DEVICE_PATH, &device.device)
+            .insert(keys::BOARD_INFO, &device.board_info)
             .insert_pci_info(Some(&device.pci.bus_id), None, Some(&device.pci.link_width))
-            .insert("PCI Link Speed", &device.pci.link_speed)
-            .insert("PCI NUMA Node", &device.pci.numa_node)
+            .insert(keys::PCI_LINK_SPEED, &device.pci.link_speed)
+            .insert(keys::PCI_NUMA_NODE, &device.pci.numa_node)
             .build();
 
         (device.uuid.clone(), device.name.clone(), detail)
     };
 
     // Add KMD version (might be updated between calls)
-    detail.insert("KMD Version".to_string(), kmd_version.to_string());
+    detail.insert(keys::KMD_VERSION.to_string(), kmd_version.to_string());
 
     // Dynamic values
-    detail.insert("Status".to_string(), device.status.clone());
-    detail.insert("Performance State".to_string(), device.pstate.clone());
+    detail.insert(keys::STATUS.to_string(), device.status.clone());
+    detail.insert(keys::PERFORMANCE_STATE.to_string(), device.pstate.clone());
 
     // Add unified AI acceleration library labels
-    detail.insert("lib_name".to_string(), "RBLN-SDK".to_string());
-    detail.insert("lib_version".to_string(), kmd_version.to_string());
+    detail.insert(keys::LIB_NAME.to_string(), "RBLN-SDK".to_string());
+    detail.insert(keys::LIB_VERSION.to_string(), kmd_version.to_string());
 
     // Parse dynamic metrics
     let temperature = parse_temp_safe(&device.temperature);

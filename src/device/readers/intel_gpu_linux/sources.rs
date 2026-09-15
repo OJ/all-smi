@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::device::keys;
 use crate::device::readers::intel_gpu_engine::{ENGINE_SEEDING_NOTE, EngineReadout};
 use std::collections::HashMap;
 
@@ -24,7 +25,10 @@ pub(super) fn decorate_static_sources(
     fan_rpm: Option<u32>,
 ) {
     if total_memory > 0 {
-        detail.insert("VRAM Total".to_string(), format!("{total_memory} bytes"));
+        detail.insert(
+            keys::VRAM_TOTAL.to_string(),
+            format!("{total_memory} bytes"),
+        );
     }
     set_source(
         detail,
@@ -63,7 +67,7 @@ pub(super) fn decorate_static_sources(
         },
     );
     if let Some(rpm) = fan_rpm {
-        detail.insert("Fan Speed".to_string(), format!("{rpm} RPM"));
+        detail.insert(keys::FAN_SPEED.to_string(), format!("{rpm} RPM"));
         set_source(detail, "Fan", "hwmon");
     } else {
         set_source(detail, "Fan", "unavailable");
@@ -88,5 +92,5 @@ pub(super) fn decorate_utilization_source(
 }
 
 fn set_source(detail: &mut HashMap<String, String>, field: &str, source: &str) {
-    detail.insert(format!("Source: {field}"), source.to_string());
+    detail.insert(keys::source(field), source.to_string());
 }

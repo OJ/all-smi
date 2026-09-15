@@ -35,6 +35,7 @@
 use std::collections::HashMap;
 
 use crate::device::GpuInfo;
+use crate::device::keys;
 
 /// The exact `nvidia-smi` command string the SSH transport should
 /// execute on a remote host. Kept as a single `&'static str` so the
@@ -162,9 +163,9 @@ fn parse_row(
 
     let mut detail: HashMap<String, String> = HashMap::new();
     if !driver_version.is_empty() {
-        detail.insert("driver_version".to_string(), driver_version);
+        detail.insert(keys::DRIVER_VERSION.to_string(), driver_version);
     }
-    detail.insert("transport".to_string(), "ssh/nvidia-smi".to_string());
+    detail.insert(keys::TRANSPORT.to_string(), "ssh/nvidia-smi".to_string());
 
     // Build a unique instance string so per-GPU rendering identifies
     // the correct remote slot. The existing remote collector uses
@@ -256,11 +257,11 @@ mod tests {
         assert_eq!(g0.instance, "dgx-01:0");
         assert_eq!(g0.device_type, "GPU");
         assert_eq!(
-            g0.detail.get("driver_version"),
+            g0.detail.get(keys::DRIVER_VERSION),
             Some(&"550.54.15".to_string())
         );
         assert_eq!(
-            g0.detail.get("transport"),
+            g0.detail.get(keys::TRANSPORT),
             Some(&"ssh/nvidia-smi".to_string())
         );
 

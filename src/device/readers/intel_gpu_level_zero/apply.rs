@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::{LevelZeroFanReadout, LevelZeroMemoryKind, LevelZeroReadout};
+use crate::device::keys;
 use crate::device::readers::detail_keys::note_metrics_source;
 use crate::device::types::{GpuInfo, MAX_GPU_FAN_RPM};
 
@@ -39,7 +40,7 @@ pub fn apply_to_gpu_info(
     if let Some(watts) = readout.power_watts {
         gpu_info
             .detail
-            .insert("Power (L0)".to_string(), format!("{:.2} W", watts.value));
+            .insert(keys::POWER_L0.to_string(), format!("{:.2} W", watts.value));
     }
 
     if let Some(temp) = readout.temperature_celsius {
@@ -61,7 +62,7 @@ pub fn apply_to_gpu_info(
                 set_source(gpu_info, "Memory", memory.source);
                 set_source(gpu_info, "Memory Used", memory.source);
                 gpu_info.detail.insert(
-                    "VRAM Total".to_string(),
+                    keys::VRAM_TOTAL.to_string(),
                     format!("{} bytes", memory.total_bytes),
                 );
             }
@@ -75,14 +76,14 @@ pub fn apply_to_gpu_info(
                 // visible without letting it replace the total.
                 if memory.total_bytes > 0 {
                     gpu_info.detail.insert(
-                        "VRAM Dedicated (L0)".to_string(),
+                        keys::VRAM_DEDICATED_L0.to_string(),
                         format!("{} bytes", memory.total_bytes),
                     );
                 }
             }
             LevelZeroMemoryKind::SharedSystem => {
                 gpu_info.detail.insert(
-                    "Memory (L0)".to_string(),
+                    keys::MEMORY_L0.to_string(),
                     "Shared/system memory; dedicated VRAM budget unavailable".to_string(),
                 );
             }
@@ -103,7 +104,7 @@ pub fn apply_to_gpu_info(
             if let Some(primary) = readout.primary_engine_utilization {
                 gpu_info.utilization = primary.value.clamp(0.0, 100.0);
                 set_source(gpu_info, "Utilization", primary.source);
-                gpu_info.detail.remove("Utilization");
+                gpu_info.detail.remove(keys::UTILIZATION);
             }
             apply_fan(gpu_info, readout.fan, false);
             // Append rather than assign. Assigning erased whatever the
@@ -113,7 +114,7 @@ pub fn apply_to_gpu_info(
             // reading. Name the generic baseline only when no layer
             // claimed one, so the string still reads "sysfs + Level Zero
             // Sysman" on a card without engine counters.
-            if !gpu_info.detail.contains_key("Metrics Source") {
+            if !gpu_info.detail.contains_key(keys::METRICS_SOURCE) {
                 note_metrics_source(&mut gpu_info.detail, "sysfs");
             }
             note_metrics_source(&mut gpu_info.detail, "Level Zero Sysman");
@@ -147,21 +148,21 @@ fn dxgi_resolved_a_shared_aperture(gpu_info: &GpuInfo, platform: ApplyPlatform) 
     matches!(platform, ApplyPlatform::Windows)
         && gpu_info
             .detail
-            .get("Source: Memory")
+            .get(keys::SOURCE_MEMORY)
             .is_some_and(|source| source.contains("shared"))
 }
 
 fn set_source(gpu_info: &mut GpuInfo, field: &str, source: &str) {
     gpu_info
         .detail
-        .insert(format!("Source: {field}"), source.to_string());
+        .insert(keys::source(field), source.to_string());
 }
 
 fn apply_fan(gpu_info: &mut GpuInfo, fan: Option<LevelZeroFanReadout>, overwrite_existing: bool) {
     let Some(fan) = fan else {
         return;
     };
-    if !overwrite_existing && gpu_info.detail.contains_key("Fan Speed") {
+    if !overwrite_existing && gpu_info.detail.contains_key(keys::FAN_SPEED) {
         return;
     }
     // Clamped so a garbled Sysman sample can never propagate `u32::MAX`
@@ -174,7 +175,7 @@ fn apply_fan(gpu_info: &mut GpuInfo, fan: Option<LevelZeroFanReadout>, overwrite
         (None, Some(percent)) => format!("{percent}%"),
         (None, None) => return,
     };
-    gpu_info.detail.insert("Fan Speed".to_string(), value);
+    gpu_info.detail.insert(keys::FAN_SPEED.to_string(), value);
     // The typed field only ever carries a tachometer reading. A
     // duty-cycle-only readout (`rpm == None`) clears it rather than storing
     // a percentage in a field named `_rpm`; the percentage still reaches

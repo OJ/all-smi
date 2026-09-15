@@ -16,6 +16,7 @@ use super::common::CommonNpuExporter;
 use super::exporter_trait::{CommonNpuMetrics, NpuExporter};
 use crate::api::metrics::MetricBuilder;
 use crate::device::GpuInfo;
+use crate::device::keys;
 
 /// Furiosa AI NPU-specific metric exporter
 /// Currently uses common NPU metrics as Furiosa-specific metrics are not yet implemented
@@ -32,7 +33,7 @@ impl FuriosaExporter {
 
     fn export_device_info(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
         // Export Furiosa-specific device information
-        if let Some(device_name) = info.detail.get("device_name") {
+        if let Some(device_name) = info.detail.get(keys::DEVICE_NAME) {
             let device_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -47,7 +48,7 @@ impl FuriosaExporter {
         }
 
         // Export chip information if available
-        if let Some(chip_name) = info.detail.get("chip_name") {
+        if let Some(chip_name) = info.detail.get(keys::CHIP_NAME) {
             let chip_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -64,7 +65,7 @@ impl FuriosaExporter {
 
     fn export_firmware_info(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
         // Export Furiosa driver version if available
-        if let Some(driver_version) = info.detail.get("driver_version") {
+        if let Some(driver_version) = info.detail.get(keys::DRIVER_VERSION) {
             let driver_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -79,7 +80,7 @@ impl FuriosaExporter {
         }
 
         // Export firmware version if available
-        if let Some(firmware_version) = info.detail.get("firmware_version") {
+        if let Some(firmware_version) = info.detail.get(keys::FIRMWARE_VERSION) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -108,7 +109,7 @@ impl FuriosaExporter {
         ];
 
         // Export NPU utilization if available
-        if let Some(util_str) = info.detail.get("utilization")
+        if let Some(util_str) = info.detail.get(keys::UTILIZATION)
             && let Some(util) = CommonNpuExporter::parse_numeric_value(util_str)
         {
             builder
@@ -121,7 +122,7 @@ impl FuriosaExporter {
         }
 
         // Export compute utilization if available
-        if let Some(compute_util_str) = info.detail.get("compute_utilization")
+        if let Some(compute_util_str) = info.detail.get(keys::COMPUTE_UTILIZATION)
             && let Some(compute_util) = CommonNpuExporter::parse_numeric_value(compute_util_str)
         {
             builder
@@ -147,7 +148,7 @@ impl FuriosaExporter {
         ];
 
         // Export memory usage if available
-        if let Some(mem_used_str) = info.detail.get("memory_used")
+        if let Some(mem_used_str) = info.detail.get(keys::MEMORY_USED)
             && let Some(mem_used) = CommonNpuExporter::parse_numeric_value(mem_used_str)
         {
             builder
@@ -160,7 +161,7 @@ impl FuriosaExporter {
         }
 
         // Export memory total if available
-        if let Some(mem_total_str) = info.detail.get("memory_total")
+        if let Some(mem_total_str) = info.detail.get(keys::MEMORY_TOTAL)
             && let Some(mem_total) = CommonNpuExporter::parse_numeric_value(mem_total_str)
         {
             builder
@@ -186,7 +187,7 @@ impl FuriosaExporter {
         ];
 
         // Export clock frequencies if available
-        if let Some(clock_str) = info.detail.get("clock_mhz")
+        if let Some(clock_str) = info.detail.get(keys::CLOCK_MHZ)
             && let Some(clock) = CommonNpuExporter::parse_numeric_value(clock_str)
         {
             builder
@@ -196,7 +197,7 @@ impl FuriosaExporter {
         }
 
         // Export memory clock if available
-        if let Some(mem_clock_str) = info.detail.get("memory_clock_mhz")
+        if let Some(mem_clock_str) = info.detail.get(keys::MEMORY_CLOCK_MHZ)
             && let Some(mem_clock) = CommonNpuExporter::parse_numeric_value(mem_clock_str)
         {
             builder

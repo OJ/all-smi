@@ -14,6 +14,7 @@
 
 use crate::device::GpuReader;
 use crate::device::common::{execute_command_default, parse_csv_line};
+use crate::device::keys;
 use crate::device::process_list::{get_all_processes, merge_gpu_processes};
 use crate::device::readers::common_cache::{DetailBuilder, DeviceStaticInfo};
 use crate::device::types::{GpuInfo, ProcessInfo};
@@ -66,7 +67,7 @@ impl NvidiaJetsonGpuReader {
                                 .unwrap_or("Unknown")
                                 .to_string();
                             builder = builder
-                                .insert("CUDA Version", &version)
+                                .insert(keys::CUDA_VERSION, &version)
                                 // Add unified AI acceleration library labels
                                 .insert("lib_name", "CUDA")
                                 .insert("lib_version", version);
@@ -87,19 +88,19 @@ impl NvidiaJetsonGpuReader {
                             .and_then(|line| line.split('=').nth(1))
                             .map(|v| v.trim().to_string())
                     });
-            builder = builder.insert_optional("JetPack Version", jetpack_version);
+            builder = builder.insert_optional(keys::JETPACK_VERSION, jetpack_version);
 
             // Get L4T version
             let mut detail = builder.build();
             if let Ok(l4t) = fs::read_to_string("/etc/nv_tegra_release")
                 && let Some(version) = l4t.split_whitespace().nth(1)
             {
-                detail.insert("L4T Version".to_string(), version.to_string());
+                detail.insert(keys::L4T_VERSION.to_string(), version.to_string());
             }
 
             // Static hardware info
-            detail.insert("GPU Type".to_string(), "Integrated".to_string());
-            detail.insert("architecture".to_string(), "Tegra".to_string());
+            detail.insert(keys::GPU_TYPE.to_string(), "Integrated".to_string());
+            detail.insert(keys::ARCHITECTURE.to_string(), "Tegra".to_string());
 
             DeviceStaticInfo::with_details(name, None, detail)
         })

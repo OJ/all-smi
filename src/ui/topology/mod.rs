@@ -31,6 +31,7 @@
 //! The orchestration entry point lives in
 //! [`crate::ui::renderers::topology_renderer`].
 
+use crate::device::keys;
 use crate::device::{GpuInfo, NvLinkRemoteDevice};
 
 pub mod classify_edge;
@@ -80,7 +81,7 @@ impl TopologyViewMode {
 /// GPU rolled into the shape the topology renderers work with.
 #[derive(Debug, Clone)]
 pub struct TopologyGpu {
-    /// Ordinal index inside the host, derived from the `detail["index"]`
+    /// Ordinal index inside the host, derived from the `detail[keys::INDEX]`
     /// metric label when available and otherwise the positional index.
     /// Drives the column order in the matrix and the label in the graph.
     pub index: u32,
@@ -153,7 +154,7 @@ impl TopologyModel {
             .map(|(positional, gpu)| TopologyGpu {
                 index: gpu
                     .detail
-                    .get("index")
+                    .get(keys::INDEX)
                     .and_then(|s| s.parse::<u32>().ok())
                     .unwrap_or(positional as u32),
                 uuid: gpu.uuid.clone(),
@@ -250,14 +251,13 @@ fn looks_nvidia(gpu: &GpuInfo) -> bool {
 /// Format PCIe display from the detail map. Falls back to the empty
 /// string when the reader did not populate any of the keys.
 fn format_pcie(gpu: &GpuInfo) -> String {
-    let gen_str = gpu
-        .detail
-        .get("PCIe Generation")
-        .or_else(|| gpu.detail.get("pcie_gen_current"));
+    let gen_str = gpu.detail.get(keys::PCIE_GENERATION);
+    // Readers spell the width `x16`; the `x` is re-added by the format below,
+    // so strip it here rather than rendering `xx16`.
     let width = gpu
         .detail
-        .get("PCIe Link Width")
-        .or_else(|| gpu.detail.get("pcie_width_current"));
+        .get(keys::PCIE_LINK_WIDTH)
+        .map(|w| w.trim_start_matches('x'));
     match (gen_str, width) {
         (Some(g), Some(w)) => format!("Gen{g} x{w}"),
         (Some(g), None) => format!("Gen{g}"),
@@ -274,7 +274,7 @@ mod tests {
 
     fn mk_gpu(index: u32, numa: Option<i32>, links: Vec<NvLinkRemoteDevice>) -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), index.to_string());
+        detail.insert(keys::INDEX.to_string(), index.to_string());
         GpuInfo {
             uuid: format!("GPU-{index}"),
             time: String::new(),
@@ -383,12 +383,27 @@ mod tests {
     }
 
     #[test]
-    fn pcie_formatting_prefers_capitalised_detail_keys() {
+    fn pcie_formatting_accepts_the_bare_width_spelling() {
         let mut gpu = mk_gpu(0, Some(0), vec![]);
         gpu.detail
-            .insert("PCIe Generation".to_string(), "5".to_string());
+            .insert(keys::PCIE_GENERATION.to_string(), "5".to_string());
         gpu.detail
-            .insert("PCIe Link Width".to_string(), "16".to_string());
+            .insert(keys::PCIE_LINK_WIDTH.to_string(), "16".to_string());
+        let model = TopologyModel::from_host("h", &[gpu]);
+        assert_eq!(model.gpus[0].pcie_display, "Gen5 x16");
+    }
+
+    #[test]
+    fn pcie_formatting_accepts_the_prefixed_width_spelling() {
+        // Every reader that populates the key writes the width the way it is
+        // spoken -- `x16` -- via `DetailBuilder::insert_pci_info` or, for
+        // NVIDIA, `add_detail_fmt!(.., "x{}")`. Rendering that verbatim
+        // produced `Gen5 xx16`.
+        let mut gpu = mk_gpu(0, Some(0), vec![]);
+        gpu.detail
+            .insert(keys::PCIE_GENERATION.to_string(), "5".to_string());
+        gpu.detail
+            .insert(keys::PCIE_LINK_WIDTH.to_string(), "x16".to_string());
         let model = TopologyModel::from_host("h", &[gpu]);
         assert_eq!(model.gpus[0].pcie_display, "Gen5 x16");
     }

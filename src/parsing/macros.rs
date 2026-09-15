@@ -229,7 +229,7 @@ macro_rules! extract_struct_fields {
 /// Example usage:
 /// ```ignore
 /// insert_optional_fields!(detail, static_info, {
-///     "PCIe Address" => pcie_address,
+///     keys::PCIE_ADDRESS => pcie_address,
 ///     "PCIe Vendor ID" => pcie_vendor_id,
 ///     "PCIe Device ID" => pcie_device_id
 /// });
@@ -291,6 +291,7 @@ macro_rules! parse_prefixed_line {
 
 #[cfg(test)]
 mod tests {
+    use crate::device::keys;
     use regex::Regex;
 
     #[test]
@@ -353,14 +354,20 @@ mod tests {
         let mut detail = HashMap::new();
 
         extract_label_to_detail!(labels, "cuda_version", detail, "cuda_version");
-        assert_eq!(detail.get("cuda_version"), Some(&"11.8".to_string()));
+        assert_eq!(detail.get(keys::CUDA_VERSION), Some(&"11.8".to_string()));
 
         extract_label_to_detail!(labels, "driver_version", detail);
-        assert_eq!(detail.get("driver_version"), Some(&"525.60.13".to_string()));
+        assert_eq!(
+            detail.get(keys::DRIVER_VERSION),
+            Some(&"525.60.13".to_string())
+        );
 
-        // Test non-existent label
-        extract_label_to_detail!(labels, "non_existent", detail);
-        assert_eq!(detail.get("non_existent"), None);
+        // Test a label that is deliberately absent; bound to a local so it
+        // reads as a fixture rather than a detail key that escaped
+        // `device::keys`.
+        let missing = "non_existent";
+        extract_label_to_detail!(labels, missing, detail);
+        assert_eq!(detail.get(missing), None);
     }
 
     #[test]
@@ -373,22 +380,28 @@ mod tests {
         labels.insert("architecture".to_string(), "Ampere".to_string());
 
         let mut detail = HashMap::new();
+        // Deliberately absent, bound to a local so it reads as a fixture
+        // rather than a detail key that escaped `device::keys`.
+        let missing = "non_existent";
 
         extract_labels_batch!(
             labels,
             detail,
             [
-                "cuda_version",
-                "driver_version",
-                "architecture",
-                "non_existent"
+                keys::CUDA_VERSION,
+                keys::DRIVER_VERSION,
+                keys::ARCHITECTURE,
+                missing
             ]
         );
 
-        assert_eq!(detail.get("cuda_version"), Some(&"11.8".to_string()));
-        assert_eq!(detail.get("driver_version"), Some(&"525.60.13".to_string()));
-        assert_eq!(detail.get("architecture"), Some(&"Ampere".to_string()));
-        assert_eq!(detail.get("non_existent"), None);
+        assert_eq!(detail.get(keys::CUDA_VERSION), Some(&"11.8".to_string()));
+        assert_eq!(
+            detail.get(keys::DRIVER_VERSION),
+            Some(&"525.60.13".to_string())
+        );
+        assert_eq!(detail.get(keys::ARCHITECTURE), Some(&"Ampere".to_string()));
+        assert_eq!(detail.get(missing), None);
     }
 
     #[test]

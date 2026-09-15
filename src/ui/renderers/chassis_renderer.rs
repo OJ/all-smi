@@ -25,6 +25,7 @@ use crate::ui::text::print_colored_text;
 use crate::ui::widgets::draw_bar;
 
 use super::gpu_renderer::format_hostname_with_scroll;
+use crate::device::keys;
 
 /// Chassis renderer struct
 #[allow(dead_code)]
@@ -162,28 +163,28 @@ pub fn print_chassis_info<W: Write>(
     }
 
     // Power breakdown from detail (Apple Silicon: CPU, GPU, ANE)
-    let has_power_breakdown = info.detail.contains_key("cpu_power_watts")
-        || info.detail.contains_key("gpu_power_watts")
-        || info.detail.contains_key("ane_power_watts");
+    let has_power_breakdown = info.detail.contains_key(keys::CPU_POWER_WATTS)
+        || info.detail.contains_key(keys::GPU_POWER_WATTS)
+        || info.detail.contains_key(keys::ANE_POWER_WATTS);
 
     if has_power_breakdown {
         print_colored_text(stdout, " │", Color::DarkGrey, None, None);
 
-        if let Some(cpu_power) = info.detail.get("cpu_power_watts")
+        if let Some(cpu_power) = info.detail.get(keys::CPU_POWER_WATTS)
             && let Ok(power) = cpu_power.parse::<f64>()
         {
             print_colored_text(stdout, " CPU:", Color::Cyan, None, None);
             print_colored_text(stdout, &format!("{power:>5.1}W"), Color::White, None, None);
         }
 
-        if let Some(gpu_power) = info.detail.get("gpu_power_watts")
+        if let Some(gpu_power) = info.detail.get(keys::GPU_POWER_WATTS)
             && let Ok(power) = gpu_power.parse::<f64>()
         {
             print_colored_text(stdout, " GPU:", Color::Green, None, None);
             print_colored_text(stdout, &format!("{power:>5.1}W"), Color::White, None, None);
         }
 
-        if let Some(ane_power) = info.detail.get("ane_power_watts")
+        if let Some(ane_power) = info.detail.get(keys::ANE_POWER_WATTS)
             && let Ok(power) = ane_power.parse::<f64>()
         {
             print_colored_text(stdout, " ANE:", Color::Blue, None, None);
@@ -238,7 +239,8 @@ pub fn print_chassis_info<W: Write>(
 
         // Determine max power for gauge based on platform
         // Apple Silicon: ~150W max, Server: ~1000W max
-        let is_apple_silicon = info.detail.get("platform") == Some(&"Apple Silicon".to_string());
+        let is_apple_silicon =
+            info.detail.get(keys::PLATFORM) == Some(&"Apple Silicon".to_string());
         let max_power = if is_apple_silicon { 150.0 } else { 1000.0 };
 
         let power_percent = (power / max_power * 100.0).min(100.0);

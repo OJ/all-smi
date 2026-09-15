@@ -47,7 +47,7 @@ impl IntelGpuMockGenerator {
 
     /// Parse memory size from GPU name. Returns 0 for integrated GPUs
     /// — they have no dedicated VRAM and the reader on a real Intel
-    /// host reports `0` total with a `detail["Memory"]` note. We mirror
+    /// host reports `0` total with a `detail["memory"]` note. We mirror
     /// that semantics here so library consumers see the same shape from
     /// the mock as they would from a live integrated Intel host.
     fn get_gpu_memory_bytes(&self) -> u64 {

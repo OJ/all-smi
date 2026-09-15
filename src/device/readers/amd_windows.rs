@@ -25,6 +25,7 @@
 //! WDDM does not publish them, and they need AMD's own ADL library.
 
 use crate::device::GpuReader;
+use crate::device::keys;
 use crate::device::readers::windows_gpu_perf::{self, ids::AdapterLuid};
 use crate::device::types::{GPU_METRIC_UNAVAILABLE, GpuInfo, ProcessInfo};
 use crate::utils::get_hostname;
@@ -144,16 +145,16 @@ impl AmdWindowsGpuReader {
                 let mut detail = HashMap::new();
 
                 if let Some(ref driver) = controller.driver_version {
-                    detail.insert("Driver Version".to_string(), driver.clone());
+                    detail.insert(keys::DRIVER_VERSION.to_string(), driver.clone());
                 }
                 if let Some(ref processor) = controller.video_processor {
-                    detail.insert("Video Processor".to_string(), processor.clone());
+                    detail.insert(keys::VIDEO_PROCESSOR.to_string(), processor.clone());
                 }
                 if let Some(ref status) = controller.status {
-                    detail.insert("Status".to_string(), status.clone());
+                    detail.insert(keys::STATUS.to_string(), status.clone());
                 }
                 if let Some(ref dac_type) = controller.adapter_d_a_c_type {
-                    detail.insert("DAC Type".to_string(), dac_type.clone());
+                    detail.insert(keys::DAC_TYPE.to_string(), dac_type.clone());
                 }
 
                 // `Metrics Source` advertises which backends produced
@@ -161,18 +162,18 @@ impl AmdWindowsGpuReader {
                 // as DXGI and PDH contribute. The per-field `Source: *`
                 // keys mirror the Intel Windows reader so both vendors
                 // expose provenance the same way.
-                detail.insert("Metrics Source".to_string(), "WMI".to_string());
+                detail.insert(keys::METRICS_SOURCE.to_string(), "WMI".to_string());
                 detail.insert(
-                    "Note".to_string(),
+                    keys::NOTE.to_string(),
                     "Temperature, power, and fan need the AMD ADL library".to_string(),
                 );
-                detail.insert("Source: Utilization".to_string(), "unavailable".to_string());
-                detail.insert("Source: Temperature".to_string(), "unavailable".to_string());
-                detail.insert("Source: Power".to_string(), "unavailable".to_string());
-                detail.insert("Source: Frequency".to_string(), "unavailable".to_string());
-                detail.insert("Source: Fan".to_string(), "unavailable".to_string());
+                detail.insert(keys::SOURCE_UTILIZATION.to_string(), "unavailable".to_string());
+                detail.insert(keys::SOURCE_TEMPERATURE.to_string(), "unavailable".to_string());
+                detail.insert(keys::SOURCE_POWER.to_string(), "unavailable".to_string());
+                detail.insert(keys::SOURCE_FREQUENCY.to_string(), "unavailable".to_string());
+                detail.insert(keys::SOURCE_FAN.to_string(), "unavailable".to_string());
                 detail.insert(
-                    "Source: Memory".to_string(),
+                    keys::SOURCE_MEMORY.to_string(),
                     if total_memory > 0 { "WMI" } else { "unavailable" }.to_string(),
                 );
 

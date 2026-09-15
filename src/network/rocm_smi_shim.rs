@@ -34,6 +34,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::device::GpuInfo;
+use crate::device::keys;
 
 /// `rocm-smi` command the SSH transport invokes on the remote host.
 pub const ROCM_SMI_COMMAND: &str =
@@ -199,9 +200,9 @@ fn parse_card(
 
     let mut detail: HashMap<String, String> = HashMap::new();
     if let Some(dv) = driver_version {
-        detail.insert("driver_version".to_string(), dv.to_string());
+        detail.insert(keys::DRIVER_VERSION.to_string(), dv.to_string());
     }
-    detail.insert("transport".to_string(), "ssh/rocm-smi".to_string());
+    detail.insert(keys::TRANSPORT.to_string(), "ssh/rocm-smi".to_string());
 
     GpuInfo {
         uuid,
@@ -318,9 +319,12 @@ mod tests {
         assert_eq!(g0.hostname, "amd01");
         assert_eq!(g0.host_id, "admin@amd01");
         assert_eq!(g0.instance, "amd01:0");
-        assert_eq!(g0.detail.get("driver_version"), Some(&"6.1.1".to_string()));
         assert_eq!(
-            g0.detail.get("transport"),
+            g0.detail.get(keys::DRIVER_VERSION),
+            Some(&"6.1.1".to_string())
+        );
+        assert_eq!(
+            g0.detail.get(keys::TRANSPORT),
             Some(&"ssh/rocm-smi".to_string())
         );
 

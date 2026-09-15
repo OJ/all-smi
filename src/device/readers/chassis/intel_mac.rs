@@ -27,6 +27,7 @@
 //! `powermetrics` would give metered rather than approximate power, but it
 //! requires sudo, which this project does not ask for on macOS.
 
+use crate::device::keys;
 use crate::device::macos_native::get_thermal_state;
 use crate::device::macos_native::smc::SmcConnection;
 use crate::device::{ChassisInfo, ChassisReader, FanInfo};
@@ -79,11 +80,11 @@ impl ChassisReader for IntelMacChassisReader {
         let thermal_pressure = get_thermal_state().as_str().to_string();
 
         let mut detail = HashMap::new();
-        detail.insert("platform".to_string(), "Intel Mac".to_string());
-        detail.insert("api".to_string(), "Native (SMC)".to_string());
+        detail.insert(keys::PLATFORM.to_string(), "Intel Mac".to_string());
+        detail.insert(keys::API.to_string(), "Native (SMC)".to_string());
 
         if let Some(cpu_power) = snapshot.cpu_power_watts {
-            detail.insert("cpu_power_watts".to_string(), format!("{cpu_power:.2}"));
+            detail.insert(keys::CPU_POWER_WATTS.to_string(), format!("{cpu_power:.2}"));
         }
 
         if snapshot.total_power_watts.is_some() {
@@ -91,7 +92,7 @@ impl ChassisReader for IntelMacChassisReader {
             // and its accuracy is model-dependent, so say so in the payload
             // rather than letting consumers assume it is measured.
             detail.insert(
-                "power_source".to_string(),
+                keys::POWER_SOURCE.to_string(),
                 "SMC PSTR (approximate)".to_string(),
             );
         }
@@ -166,7 +167,7 @@ mod tests {
 
         assert!(info.thermal_pressure.is_some());
         assert_eq!(
-            info.detail.get("platform").map(String::as_str),
+            info.detail.get(keys::PLATFORM).map(String::as_str),
             Some("Intel Mac")
         );
         assert!(info.inlet_temperature.is_none());
@@ -182,7 +183,7 @@ mod tests {
 
         assert_eq!(
             info.total_power_watts.is_some(),
-            info.detail.contains_key("power_source")
+            info.detail.contains_key(keys::POWER_SOURCE)
         );
     }
 }

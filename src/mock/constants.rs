@@ -32,7 +32,7 @@ pub const DEFAULT_INTEL_GPU_NAME: &str = "Intel Arc B580 12GB";
 /// Representative Intel Graphics Driver version string. The "real"
 /// equivalent on Linux is the kernel/mesa stack, which doesn't
 /// translate to a single version number; the Windows-style version is
-/// what consumers see in the WMI reader's `detail["Driver Version"]`.
+/// what consumers see in the WMI reader's `detail["driver_version"]`.
 pub const DEFAULT_INTEL_DRIVER_VERSION: &str = "32.0.101.6299";
 pub const NUM_GPUS: usize = 8;
 pub const UPDATE_INTERVAL_SECS: u64 = 3;

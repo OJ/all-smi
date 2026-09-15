@@ -206,6 +206,7 @@ fn string_value<R: DeviceRowView + ?Sized>(field: Field, row: &R) -> Option<&str
 // DeviceRowView impls for the concrete device structs.
 // ---------------------------------------------------------------------------
 
+use crate::device::keys;
 use crate::device::types::{CpuInfo, GpuInfo, ProcessInfo};
 
 impl DeviceRowView for GpuInfo {
@@ -245,10 +246,12 @@ impl DeviceRowView for GpuInfo {
         Some(&self.name)
     }
     fn driver_field(&self) -> Option<&str> {
-        self.detail.get("driver_version").map(|s| s.as_str())
+        self.detail.get(keys::DRIVER_VERSION).map(|s| s.as_str())
     }
     fn index_field(&self) -> Option<f64> {
-        self.detail.get("index").and_then(|s| s.parse::<f64>().ok())
+        self.detail
+            .get(keys::INDEX)
+            .and_then(|s| s.parse::<f64>().ok())
     }
     fn uuid_field(&self) -> Option<&str> {
         if self.uuid.is_empty() {
@@ -330,8 +333,8 @@ mod tests {
 
     fn make_gpu(index: u32, temp: u32, util: f64, power: f64) -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), index.to_string());
-        detail.insert("driver_version".to_string(), "550.54.15".to_string());
+        detail.insert(keys::INDEX.to_string(), index.to_string());
+        detail.insert(keys::DRIVER_VERSION.to_string(), "550.54.15".to_string());
         GpuInfo {
             uuid: format!("GPU-{index}"),
             time: String::new(),

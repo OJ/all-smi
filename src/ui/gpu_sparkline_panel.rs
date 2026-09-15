@@ -53,6 +53,7 @@ use crossterm::{queue, style::Color, style::Print};
 use crate::app_state::AppState;
 use crate::common::config::ThemeConfig;
 use crate::device::CpuInfo;
+use crate::device::keys;
 use crate::ui::activity_panel::{self, GRAPH_ROWS, use_multirow_graphs};
 use crate::ui::braille::sparkline_braille;
 use crate::ui::buffer::BufferWriter;
@@ -604,7 +605,7 @@ fn fit_field(s: &str, width: usize) -> String {
 fn detect_apple_silicon(state: &AppState) -> bool {
     state.gpu_info.iter().any(|gpu| {
         gpu.detail
-            .get("architecture")
+            .get(keys::ARCHITECTURE)
             .map(|arch| arch == "Apple Silicon")
             .unwrap_or(false)
     })
@@ -637,7 +638,7 @@ fn package_power(state: &AppState, is_apple: bool) -> f64 {
             .iter()
             .filter_map(|gpu| {
                 gpu.detail
-                    .get("combined_power_mw")
+                    .get(keys::COMBINED_POWER_MW)
                     .and_then(|s| s.parse::<f64>().ok())
             })
             .next()
@@ -667,7 +668,7 @@ mod tests {
         state.is_local_mode = true;
 
         let mut detail = HashMap::new();
-        detail.insert("architecture".to_string(), "NVIDIA".to_string());
+        detail.insert(keys::ARCHITECTURE.to_string(), "NVIDIA".to_string());
 
         state.gpu_info.push(GpuInfo {
             uuid: "gpu-0".to_string(),
@@ -718,8 +719,8 @@ mod tests {
         state.is_local_mode = true;
 
         let mut detail = HashMap::new();
-        detail.insert("architecture".to_string(), "Apple Silicon".to_string());
-        detail.insert("combined_power_mw".to_string(), "12500".to_string());
+        detail.insert(keys::ARCHITECTURE.to_string(), "Apple Silicon".to_string());
+        detail.insert(keys::COMBINED_POWER_MW.to_string(), "12500".to_string());
 
         state.gpu_info.push(GpuInfo {
             uuid: "apple-gpu".to_string(),

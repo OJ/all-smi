@@ -31,7 +31,7 @@
 //!
 //! Linux starts from sysfs/hwmon/fdinfo and Windows starts from WMI.
 //! Fresh Sysman values override those baselines per field except Linux
-//! fan telemetry, where hwmon keeps priority. `detail["Source: <field>"]`
+//! fan telemetry, where hwmon keeps priority. `detail["source_<field>"]`
 //! exposes mixed-source results.
 //!
 //! ## Threading model

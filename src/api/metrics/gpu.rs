@@ -14,14 +14,15 @@
 
 use super::{MetricBuilder, MetricExporter};
 use crate::device::GpuInfo;
+use crate::device::keys;
 use crate::device::types::MAX_GPU_FAN_RPM;
 use crate::parsing::common::{sanitize_label_name, sanitize_label_value};
 
 /// Legacy `detail` key every reader used before `GpuInfo::fan_speed_rpm`
-/// existed, and still writes alongside it. `sanitize_label_name` turns the
-/// key into the `fan_speed` label on `all_smi_gpu_info`, which is how a node
-/// running an older build puts the reading on the wire.
-pub(crate) const FAN_SPEED_DETAIL_KEY: &str = "Fan Speed";
+/// existed, and still writes alongside it. The key doubles as the `fan_speed`
+/// label on `all_smi_gpu_info`, which is how a node running an older build
+/// puts the reading on the wire.
+pub(crate) const FAN_SPEED_DETAIL_KEY: &str = keys::FAN_SPEED;
 
 /// Recover an RPM reading from the legacy `Fan Speed` detail string.
 ///
@@ -199,7 +200,7 @@ impl<'a> GpuMetricExporter<'a> {
         }
 
         // Thermal pressure level
-        if let Some(thermal_level) = info.detail.get("thermal_pressure") {
+        if let Some(thermal_level) = info.detail.get(keys::THERMAL_PRESSURE) {
             let thermal_labels = [
                 ("gpu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -214,7 +215,7 @@ impl<'a> GpuMetricExporter<'a> {
         }
 
         // Combined power (CPU + GPU + ANE) for Apple Silicon
-        if let Some(combined_power_str) = info.detail.get("combined_power_mw")
+        if let Some(combined_power_str) = info.detail.get(keys::COMBINED_POWER_MW)
             && let Ok(combined_power_mw) = combined_power_str.parse::<f64>()
         {
             let combined_power_watts = combined_power_mw / 1000.0;
@@ -284,7 +285,7 @@ impl<'a> GpuMetricExporter<'a> {
         ];
 
         // PCIe metrics
-        if let Some(pcie_gen) = info.detail.get("pcie_gen_current")
+        if let Some(pcie_gen) = info.detail.get(keys::PCIE_GENERATION)
             && let Ok(pcie_gen_value) = pcie_gen.parse::<f64>()
         {
             builder
@@ -293,8 +294,10 @@ impl<'a> GpuMetricExporter<'a> {
                 .metric("all_smi_gpu_pcie_gen_current", &base_labels, pcie_gen_value);
         }
 
-        if let Some(pcie_width) = info.detail.get("pcie_width_current")
-            && let Ok(width) = pcie_width.parse::<f64>()
+        // Readers write the negotiated width the way it is spoken -- `x16` --
+        // so the prefix comes off before the gauge sees it.
+        if let Some(pcie_width) = info.detail.get(keys::PCIE_LINK_WIDTH)
+            && let Ok(width) = pcie_width.trim_start_matches('x').parse::<f64>()
         {
             builder
                 .help("all_smi_gpu_pcie_width_current", "Current PCIe link width")
@@ -303,7 +306,7 @@ impl<'a> GpuMetricExporter<'a> {
         }
 
         // Clock metrics
-        if let Some(clock_max) = info.detail.get("clock_graphics_max")
+        if let Some(clock_max) = info.detail.get(keys::CLOCK_GRAPHICS_MAX)
             && let Ok(clock) = clock_max.parse::<f64>()
         {
             builder
@@ -315,7 +318,7 @@ impl<'a> GpuMetricExporter<'a> {
                 .metric("all_smi_gpu_clock_graphics_max_mhz", &base_labels, clock);
         }
 
-        if let Some(clock_max) = info.detail.get("clock_memory_max")
+        if let Some(clock_max) = info.detail.get(keys::CLOCK_MEMORY_MAX)
             && let Ok(clock) = clock_max.parse::<f64>()
         {
             builder
@@ -328,7 +331,7 @@ impl<'a> GpuMetricExporter<'a> {
         }
 
         // Power limit metrics
-        if let Some(power_limit) = info.detail.get("power_limit_current")
+        if let Some(power_limit) = info.detail.get(keys::POWER_LIMIT_CURRENT)
             && let Ok(power) = power_limit.parse::<f64>()
         {
             builder
@@ -340,7 +343,7 @@ impl<'a> GpuMetricExporter<'a> {
                 .metric("all_smi_gpu_power_limit_current_watts", &base_labels, power);
         }
 
-        if let Some(power_limit) = info.detail.get("power_limit_max")
+        if let Some(power_limit) = info.detail.get(keys::POWER_LIMIT_MAX)
             && let Ok(power) = power_limit.parse::<f64>()
         {
             builder
@@ -367,7 +370,7 @@ impl<'a> GpuMetricExporter<'a> {
                 )
                 .type_("all_smi_gpu_performance_state", "gauge")
                 .metric("all_smi_gpu_performance_state", &base_labels, pstate as f64);
-        } else if let Some(pstate_str) = info.detail.get("performance_state")
+        } else if let Some(pstate_str) = info.detail.get(keys::PERFORMANCE_STATE)
             && let Some(state_str) = pstate_str.strip_prefix('P')
             && let Ok(state_num) = state_str.parse::<f64>()
         {
@@ -610,13 +613,21 @@ mod tests {
 
     #[test]
     fn exporter_sanitizes_dynamic_detail_label_names() {
+        // Deliberately *not* `detail_keys` constants: those are canonical and
+        // pass through sanitizing untouched, which would prove nothing. A
+        // payload can still carry an arbitrary key -- an older node, or a
+        // future reader that skips the constants -- and it must not be able to
+        // emit a malformed label name. The keys are bound to locals so the
+        // spelling stays deliberate rather than reading as a stale literal.
+        let punctuated = "Source: Fan";
+        let leading_digit = "3D Engine";
+        let path_like = "GPU.Temp/Limit";
         let mut gpu = make_nvidia_gpu();
         gpu.detail
-            .insert("Source: Fan".to_string(), "hwmon".to_string());
+            .insert(punctuated.to_string(), "hwmon".to_string());
         gpu.detail
-            .insert("3D Engine".to_string(), "busy".to_string());
-        gpu.detail
-            .insert("GPU.Temp/Limit".to_string(), "90".to_string());
+            .insert(leading_digit.to_string(), "busy".to_string());
+        gpu.detail.insert(path_like.to_string(), "90".to_string());
         let gpus = vec![gpu];
         let output = GpuMetricExporter::new(&gpus).export_metrics();
         let info_line = output
@@ -727,7 +738,7 @@ mod tests {
         let mut gpu = make_nvidia_gpu();
         gpu.fan_speed_rpm = None;
         gpu.detail
-            .insert("Fan Speed".to_string(), "1450 RPM".to_string());
+            .insert(keys::FAN_SPEED.to_string(), "1450 RPM".to_string());
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
 
         let line = output
@@ -742,7 +753,7 @@ mod tests {
         let mut gpu = make_nvidia_gpu();
         gpu.fan_speed_rpm = Some(1450);
         gpu.detail
-            .insert("Fan Speed".to_string(), "9999 RPM".to_string());
+            .insert(keys::FAN_SPEED.to_string(), "9999 RPM".to_string());
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
 
         let lines: Vec<&str> = output
@@ -761,7 +772,7 @@ mod tests {
         let mut gpu = make_nvidia_gpu();
         gpu.fan_speed_rpm = None;
         gpu.detail
-            .insert("Fan Speed".to_string(), "40%".to_string());
+            .insert(keys::FAN_SPEED.to_string(), "40%".to_string());
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
         assert!(
             !output.contains("all_smi_gpu_fan_speed_rpm"),
@@ -781,7 +792,7 @@ mod tests {
         let mut gpu = make_nvidia_gpu();
         gpu.fan_speed_rpm = None;
         gpu.detail
-            .insert("Fan Speed".to_string(), "1450.5 RPM".to_string());
+            .insert(keys::FAN_SPEED.to_string(), "1450.5 RPM".to_string());
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
         assert!(
             !output.contains("all_smi_gpu_fan_speed_rpm"),
@@ -798,7 +809,7 @@ mod tests {
         let mut gpu = make_nvidia_gpu();
         gpu.fan_speed_rpm = None;
         gpu.detail
-            .insert("Fan Speed".to_string(), "4294967295 RPM".to_string());
+            .insert(keys::FAN_SPEED.to_string(), "4294967295 RPM".to_string());
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
         assert!(
             !output.contains("all_smi_gpu_fan_speed_rpm"),
@@ -854,7 +865,7 @@ mod tests {
         gpu.temperature = 0;
         gpu.frequency = 0;
         gpu.detail
-            .insert("native_metrics".to_string(), "unavailable".to_string());
+            .insert(keys::NATIVE_METRICS.to_string(), "unavailable".to_string());
 
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
 
@@ -901,10 +912,12 @@ mod tests {
         gpu.name = "AMD Radeon Graphics".to_string();
         gpu.utilization = GPU_METRIC_UNAVAILABLE;
         gpu.power_consumption = GPU_METRIC_UNAVAILABLE;
+        gpu.detail.insert(
+            keys::SOURCE_UTILIZATION.to_string(),
+            "unavailable".to_string(),
+        );
         gpu.detail
-            .insert("Source: Utilization".to_string(), "unavailable".to_string());
-        gpu.detail
-            .insert("Source: Power".to_string(), "unavailable".to_string());
+            .insert(keys::SOURCE_POWER.to_string(), "unavailable".to_string());
 
         let output = GpuMetricExporter::new(&[gpu]).export_metrics();
 
@@ -914,8 +927,8 @@ mod tests {
             "{output}"
         );
         assert!(output.contains("all_smi_gpu_info{"), "{output}");
-        assert!(output.contains("source__utilization=\"unavailable\""));
-        assert!(output.contains("source__power=\"unavailable\""));
+        assert!(output.contains("source_utilization=\"unavailable\""));
+        assert!(output.contains("source_power=\"unavailable\""));
     }
 
     /// The other half of the contract: a real zero is still published, so

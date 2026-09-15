@@ -23,6 +23,7 @@ use std::io::Write;
 
 use crossterm::{queue, style::Color, style::Print};
 
+use crate::device::keys;
 use crate::device::{ChassisInfo, CpuInfo, GpuInfo, MemoryInfo};
 use crate::ui::text::{display_width, print_colored_text, truncate_to_width};
 
@@ -99,9 +100,10 @@ pub fn print_gpu_details<W: Write>(stdout: &mut W, info: &GpuInfo, width: usize)
         push_field(stdout, &mut used, width, "Freq ", Color::Magenta, &display);
     }
 
-    if let (Some(name), Some(version)) =
-        (info.detail.get("lib_name"), info.detail.get("lib_version"))
-    {
+    if let (Some(name), Some(version)) = (
+        info.detail.get(keys::LIB_NAME),
+        info.detail.get(keys::LIB_VERSION),
+    ) {
         push_field(
             stdout,
             &mut used,
@@ -110,13 +112,13 @@ pub fn print_gpu_details<W: Write>(stdout: &mut W, info: &GpuInfo, width: usize)
             Color::Green,
             version,
         );
-    } else if let Some(version) = info.detail.get("CUDA Version") {
+    } else if let Some(version) = info.detail.get(keys::CUDA_VERSION) {
         push_field(stdout, &mut used, width, "CUDA ", Color::Green, version);
-    } else if let Some(version) = info.detail.get("ROCm Version") {
+    } else if let Some(version) = info.detail.get(keys::ROCM_VERSION) {
         push_field(stdout, &mut used, width, "ROCm ", Color::Green, version);
     }
 
-    if let Some(version) = info.detail.get("Driver Version") {
+    if let Some(version) = info.detail.get(keys::DRIVER_VERSION) {
         push_field(
             stdout,
             &mut used,
@@ -394,8 +396,8 @@ mod tests {
             nvlink_remote_devices: Vec::new(),
             gpm_metrics: None,
             detail: HashMap::from([
-                ("lib_name".to_string(), "CUDA".to_string()),
-                ("lib_version".to_string(), "13.0".to_string()),
+                (keys::LIB_NAME.to_string(), "CUDA".to_string()),
+                (keys::LIB_VERSION.to_string(), "13.0".to_string()),
             ]),
         }
     }

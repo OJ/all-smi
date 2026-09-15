@@ -16,6 +16,7 @@ use super::common::CommonNpuExporter;
 use super::exporter_trait::{CommonNpuMetrics, NpuExporter};
 use crate::api::metrics::MetricBuilder;
 use crate::device::GpuInfo;
+use crate::device::keys;
 
 /// Rebellions NPU-specific metric exporter
 pub struct RebellionsExporter {
@@ -31,7 +32,7 @@ impl RebellionsExporter {
 
     fn export_firmware_info(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
         // Rebellions firmware info
-        if let Some(fw_version) = info.detail.get("firmware_version") {
+        if let Some(fw_version) = info.detail.get(keys::FIRMWARE_VERSION) {
             let fw_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),
@@ -49,7 +50,7 @@ impl RebellionsExporter {
         }
 
         // KMD version
-        if let Some(kmd_version) = info.detail.get("kmd_version") {
+        if let Some(kmd_version) = info.detail.get(keys::KMD_VERSION) {
             let kmd_labels = [
                 ("instance", info.instance.as_str()),
                 ("version", kmd_version.as_str()),
@@ -62,8 +63,8 @@ impl RebellionsExporter {
     }
 
     fn export_device_info(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
-        if let Some(_device_name) = info.detail.get("device_name")
-            && let Some(sid) = info.detail.get("serial_id")
+        if let Some(_device_name) = info.detail.get(keys::DEVICE_NAME)
+            && let Some(sid) = info.detail.get(keys::SERIAL_ID)
         {
             let model_type = if info.name.contains("ATOM Max") {
                 "ATOM-Max"
@@ -93,7 +94,7 @@ impl RebellionsExporter {
     }
 
     fn export_performance_state(&self, builder: &mut MetricBuilder, info: &GpuInfo, index: usize) {
-        if let Some(pstate) = info.detail.get("performance_state") {
+        if let Some(pstate) = info.detail.get(keys::PERFORMANCE_STATE) {
             let pstate_labels = [
                 ("npu", info.name.as_str()),
                 ("instance", info.instance.as_str()),

@@ -47,6 +47,7 @@ use crossterm::{queue, style::Color, style::Print};
 
 use crate::app_state::AppState;
 use crate::common::config::ThemeConfig;
+use crate::device::keys;
 use crate::ui::braille::sparkline_braille;
 use crate::ui::buffer::BufferWriter;
 use crate::ui::scale::{
@@ -456,7 +457,7 @@ fn draw_power_sparkline<W: Write>(
 fn current_power_watts(state: &AppState) -> f64 {
     let is_apple_silicon = state.gpu_info.iter().any(|gpu| {
         gpu.detail
-            .get("architecture")
+            .get(keys::ARCHITECTURE)
             .map(|arch| arch == "Apple Silicon")
             .unwrap_or(false)
     });
@@ -468,7 +469,7 @@ fn current_power_watts(state: &AppState) -> f64 {
             .iter()
             .filter_map(|gpu| {
                 gpu.detail
-                    .get("combined_power_mw")
+                    .get(keys::COMBINED_POWER_MW)
                     .and_then(|s| s.parse::<f64>().ok())
                     .map(|mw| mw / 1000.0)
             })

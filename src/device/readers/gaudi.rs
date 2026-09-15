@@ -35,6 +35,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 #[cfg(target_os = "linux")]
 use crate::device::hlsmi;
+use crate::device::keys;
 
 /// Cache for hl-smi command path
 #[cfg(target_os = "linux")]
@@ -76,10 +77,10 @@ impl GaudiNpuReader {
 
                 // Build detail HashMap using DetailBuilder
                 let detail = DetailBuilder::new()
-                    .insert("Device Index", device.index.to_string())
-                    .insert("Internal Name", &device.name) // Keep original name
-                    .insert("Max Power", format!("{} W", device.power_max))
-                    .insert("Total Memory", format!("{} MiB", device.memory_total))
+                    .insert(keys::DEVICE_INDEX, device.index.to_string())
+                    .insert(keys::INTERNAL_NAME, &device.name) // Keep original name
+                    .insert(keys::MAX_POWER, format!("{} W", device.power_max))
+                    .insert(keys::TOTAL_MEMORY, format!("{} MiB", device.memory_total))
                     .build();
 
                 let static_info = DeviceStaticInfo::with_details(
@@ -222,35 +223,38 @@ fn create_gpu_info_from_device(
     } else {
         // Build detail HashMap if no cache available (first call)
         let detail = DetailBuilder::new()
-            .insert("Device Index", device.index.to_string())
-            .insert("Internal Name", &device.name) // Keep original name in details
-            .insert("Max Power", format!("{} W", device.power_max))
-            .insert("Total Memory", format!("{} MiB", device.memory_total))
+            .insert(keys::DEVICE_INDEX, device.index.to_string())
+            .insert(keys::INTERNAL_NAME, &device.name) // Keep original name in details
+            .insert(keys::MAX_POWER, format!("{} W", device.power_max))
+            .insert(keys::TOTAL_MEMORY, format!("{} MiB", device.memory_total))
             .build();
 
         (device.uuid.clone(), friendly_name.clone(), detail)
     };
 
     // Add unified AI acceleration library labels
-    detail.insert("lib_name".to_string(), "Habana".to_string());
-    detail.insert("lib_version".to_string(), device.driver_version.clone());
+    detail.insert(keys::LIB_NAME.to_string(), "Habana".to_string());
+    detail.insert(keys::LIB_VERSION.to_string(), device.driver_version.clone());
 
     // Dynamic values
     detail.insert(
-        "Current Power".to_string(),
+        keys::CURRENT_POWER.to_string(),
         format!("{} W", device.power_draw),
     );
     detail.insert(
-        "Used Memory".to_string(),
+        keys::USED_MEMORY.to_string(),
         format!("{} MiB", device.memory_used),
     );
     detail.insert(
-        "Free Memory".to_string(),
+        keys::FREE_MEMORY.to_string(),
         format!("{} MiB", device.memory_free),
     );
 
     // Add power limit max for display
-    detail.insert("power_limit_max".to_string(), device.power_max.to_string());
+    detail.insert(
+        keys::POWER_LIMIT_MAX.to_string(),
+        device.power_max.to_string(),
+    );
 
     // Convert memory from MiB to bytes
     let total_memory = device.memory_total * 1024 * 1024;

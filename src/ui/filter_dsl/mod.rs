@@ -51,12 +51,13 @@ pub fn apply<R: DeviceRowView + ?Sized>(query: Option<&Expr>, row: &R) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::keys;
     use crate::device::types::GpuInfo;
     use std::collections::HashMap;
 
     fn simple_gpu() -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), "0".to_string());
+        detail.insert(keys::INDEX.to_string(), "0".to_string());
         GpuInfo {
             uuid: "GPU-0".to_string(),
             time: String::new(),

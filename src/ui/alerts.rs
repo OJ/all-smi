@@ -31,6 +31,7 @@ use chrono::{DateTime, Local};
 
 use crate::common::config::AlertConfig;
 use crate::device::GpuInfo;
+use crate::device::keys;
 
 /// Alert severity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -275,7 +276,7 @@ impl Alerter {
             out.push(AlertTransition {
                 timestamp: Local::now(),
                 host: gpu.hostname.clone(),
-                gpu_index: gpu.detail.get("index").and_then(|s| s.parse().ok()),
+                gpu_index: gpu.detail.get(keys::INDEX).and_then(|s| s.parse().ok()),
                 rule: RuleKind::Temperature,
                 from: current,
                 to: target,
@@ -335,7 +336,7 @@ impl Alerter {
                 out.push(AlertTransition {
                     timestamp: Local::now(),
                     host: gpu.hostname.clone(),
-                    gpu_index: gpu.detail.get("index").and_then(|s| s.parse().ok()),
+                    gpu_index: gpu.detail.get(keys::INDEX).and_then(|s| s.parse().ok()),
                     rule: RuleKind::IdleUtilization,
                     from: prev_level,
                     to: target,
@@ -364,7 +365,7 @@ impl Alerter {
                 out.push(AlertTransition {
                     timestamp: Local::now(),
                     host: gpu.hostname.clone(),
-                    gpu_index: gpu.detail.get("index").and_then(|s| s.parse().ok()),
+                    gpu_index: gpu.detail.get(keys::INDEX).and_then(|s| s.parse().ok()),
                     rule: RuleKind::IdleUtilization,
                     from: prev_level,
                     to: AlertLevel::Ok,
@@ -430,7 +431,7 @@ impl Alerter {
             out.push(AlertTransition {
                 timestamp: Local::now(),
                 host: gpu.hostname.clone(),
-                gpu_index: gpu.detail.get("index").and_then(|s| s.parse().ok()),
+                gpu_index: gpu.detail.get(keys::INDEX).and_then(|s| s.parse().ok()),
                 rule: RuleKind::Power,
                 from: current,
                 to: target,
@@ -453,7 +454,11 @@ fn build_message(
     value: f64,
     threshold: f64,
 ) -> String {
-    let ix = gpu.detail.get("index").map(|s| s.as_str()).unwrap_or("?");
+    let ix = gpu
+        .detail
+        .get(keys::INDEX)
+        .map(|s| s.as_str())
+        .unwrap_or("?");
     let hn = &gpu.hostname;
     let label = rule.as_label();
     let from_s = from.as_label();
@@ -479,7 +484,10 @@ fn device_id(gpu: &GpuInfo) -> String {
     } else {
         format!(
             "{}@{}",
-            gpu.detail.get("index").map(|s| s.as_str()).unwrap_or("?"),
+            gpu.detail
+                .get(keys::INDEX)
+                .map(|s| s.as_str())
+                .unwrap_or("?"),
             gpu.hostname
         )
     }
@@ -521,7 +529,7 @@ mod tests {
 
     fn gpu(temp: u32, util: f64, power: f64) -> GpuInfo {
         let mut detail = HashMap::new();
-        detail.insert("index".to_string(), "0".to_string());
+        detail.insert(keys::INDEX.to_string(), "0".to_string());
         GpuInfo {
             uuid: "GPU-0".to_string(),
             time: String::new(),

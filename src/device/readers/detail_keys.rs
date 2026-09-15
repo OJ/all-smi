@@ -28,6 +28,8 @@
 
 use std::collections::HashMap;
 
+use crate::device::keys;
+
 /// Record that `source` contributed to this GPU's metrics.
 ///
 /// `Metrics Source` is a human-readable composition of the layers that
@@ -46,7 +48,7 @@ use std::collections::HashMap;
 // Windows DXGI/PDH and ADL layers, and the Level Zero backend.
 #[cfg_attr(not(any(target_os = "windows", all_smi_level_zero)), allow(dead_code))]
 pub fn note_metrics_source(detail: &mut HashMap<String, String>, source: &str) {
-    let entry = detail.entry("Metrics Source".to_string()).or_default();
+    let entry = detail.entry(keys::METRICS_SOURCE.to_string()).or_default();
     if entry.is_empty() {
         *entry = source.to_string();
         return;
@@ -77,7 +79,7 @@ pub fn missing_metric_sources<'a>(
         .copied()
         .filter(|field| {
             detail
-                .get(&format!("Source: {field}"))
+                .get(&keys::source(field))
                 .is_none_or(|source| source == "unavailable")
         })
         .collect()
@@ -91,9 +93,9 @@ mod tests {
     fn metrics_source_starts_clean_when_absent() {
         let mut detail = HashMap::new();
         note_metrics_source(&mut detail, "DXGI");
-        assert_eq!(detail["Metrics Source"], "DXGI");
+        assert_eq!(detail[keys::METRICS_SOURCE], "DXGI");
         note_metrics_source(&mut detail, "PDH");
-        assert_eq!(detail["Metrics Source"], "DXGI + PDH");
+        assert_eq!(detail[keys::METRICS_SOURCE], "DXGI + PDH");
     }
 
     #[test]
@@ -103,7 +105,7 @@ mod tests {
             note_metrics_source(&mut detail, "WMI");
             note_metrics_source(&mut detail, "DXGI");
         }
-        assert_eq!(detail["Metrics Source"], "WMI + DXGI");
+        assert_eq!(detail[keys::METRICS_SOURCE], "WMI + DXGI");
     }
 
     #[test]
@@ -117,7 +119,7 @@ mod tests {
         note_metrics_source(&mut detail, "PDH");
         note_metrics_source(&mut detail, "Level Zero Sysman");
         assert_eq!(
-            detail["Metrics Source"],
+            detail[keys::METRICS_SOURCE],
             "WMI + DXGI + PDH + Level Zero Sysman"
         );
     }
@@ -129,7 +131,10 @@ mod tests {
         let mut detail = HashMap::new();
         note_metrics_source(&mut detail, "Level Zero Sysman");
         note_metrics_source(&mut detail, "Level Zero");
-        assert_eq!(detail["Metrics Source"], "Level Zero Sysman + Level Zero");
+        assert_eq!(
+            detail[keys::METRICS_SOURCE],
+            "Level Zero Sysman + Level Zero"
+        );
     }
 
     const METRIC_FIELDS: &[&str] = &["Temperature", "Power", "Frequency", "Utilization"];
@@ -137,7 +142,7 @@ mod tests {
     fn detail_with(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         pairs
             .iter()
-            .map(|(field, source)| (format!("Source: {field}"), (*source).to_string()))
+            .map(|(field, source)| (keys::source(field), (*source).to_string()))
             .collect()
     }
 

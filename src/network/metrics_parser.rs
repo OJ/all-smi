@@ -18,6 +18,7 @@ use crate::parsing::common::sanitize_label_value;
 use chrono::Local;
 use regex::Regex;
 
+use crate::device::keys;
 use crate::device::types::{GPU_METRIC_UNAVAILABLE, MAX_GPU_FAN_RPM};
 use crate::device::{
     AppleSiliconCpuInfo, CpuInfo, CpuPlatformType, GpmMetrics, GpuInfo, MemoryInfo, MigGpuInfo,
@@ -449,7 +450,7 @@ impl MetricsParser {
         let gpu_index = labels
             .get("gpu_index")
             .or_else(|| labels.get("npu_index"))
-            .or_else(|| labels.get("index"))
+            .or_else(|| labels.get(keys::INDEX))
             .cloned()
             .unwrap_or_default();
 
@@ -459,7 +460,7 @@ impl MetricsParser {
 
         let gpu_info = gpu_info_map.entry(gpu_uuid.clone()).or_insert_with(|| {
             let mut detail = HashMap::new();
-            detail.insert("index".to_string(), gpu_index.clone());
+            detail.insert(keys::INDEX.to_string(), gpu_index.clone());
             GpuInfo {
                 uuid: gpu_uuid.clone(),
                 time: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -526,7 +527,7 @@ impl MetricsParser {
             "gpu_power_limit_max_watts" => {
                 gpu_info
                     .detail
-                    .insert("power_limit_max".to_string(), value.to_string());
+                    .insert(keys::POWER_LIMIT_MAX.to_string(), value.to_string());
             }
             "gpu_info" => {
                 // Extract device type
@@ -547,6 +548,10 @@ impl MetricsParser {
                         "serial_number",
                         "pci_address",
                         "pci_device",
+                        // Rebuild the PCIe pair a viewer's topology tab reads;
+                        // without them a remote row renders no link at all.
+                        keys::PCIE_GENERATION,
+                        keys::PCIE_LINK_WIDTH,
                         // Apple Silicon: why the live series are missing.
                         // Carried on the identity series so a remote viewer
                         // sees the reason and not just the absence (#325).
@@ -900,7 +905,7 @@ impl MetricsParser {
             }
             "cpu_info" => {
                 // Extract architecture and platform type from cpu_info metric
-                if let Some(architecture) = labels.get("architecture") {
+                if let Some(architecture) = labels.get(keys::ARCHITECTURE) {
                     cpu_info.architecture = architecture.clone();
                 }
                 if let Some(platform_type_str) = labels.get("platform_type") {
@@ -1040,7 +1045,7 @@ impl MetricsParser {
         for gpu_info in gpu_info_map.values_mut() {
             gpu_info
                 .detail
-                .insert("instance_name".to_string(), instance_name.to_string());
+                .insert(keys::INSTANCE_NAME.to_string(), instance_name.to_string());
         }
         for _cpu_info in cpu_info_map.values_mut() {
             // For CPU info, we may want to store instance name differently
@@ -1325,7 +1330,7 @@ impl VgpuParseState {
             }
             "vgpu_scheduler_state" => {
                 host_entry.scheduler_arr_mode = value as u32;
-                if let Some(flag) = labels.get("arr_supported") {
+                if let Some(flag) = labels.get(keys::ARR_SUPPORTED) {
                     host_entry.is_arr_supported = flag == "true";
                 }
             }
@@ -1642,7 +1647,7 @@ mod tests {
         let labels = parser.parse_labels(r#"instance="node-0058", mount_point="/", index="0""#);
         assert_eq!(labels.get("instance").unwrap(), "node-0058");
         assert_eq!(labels.get("mount_point").unwrap(), "/");
-        assert_eq!(labels.get("index").unwrap(), "0");
+        assert_eq!(labels.get(keys::INDEX).unwrap(), "0");
 
         let labels = parser.parse_labels(r#"gpu="NVIDIA H200 141GB HBM3", uuid="GPU-12345""#);
         assert_eq!(labels.get("gpu").unwrap(), "NVIDIA H200 141GB HBM3");
@@ -1717,7 +1722,7 @@ all_smi_gpu_info{gpu="Apple M2 Max GPU", instance="mac-1", gpu_uuid="AppleSilico
         // Memory and the reason label do survive.
         assert_eq!(gpu.total_memory, 34359738368);
         assert_eq!(
-            gpu.detail.get("native_metrics").map(String::as_str),
+            gpu.detail.get(keys::NATIVE_METRICS).map(String::as_str),
             Some("unavailable")
         );
     }
@@ -1984,9 +1989,9 @@ all_smi_npu_firmware_info{npu=\"Tenstorrent Wormhole n150s\", instance=\"node-7\
         assert_eq!(npu.uuid, "NPU-A");
         assert!((npu.utilization - 33.3).abs() < 0.1);
         assert_eq!(npu.temperature, 52);
-        assert_eq!(npu.detail.get("index").map(String::as_str), Some("0"));
+        assert_eq!(npu.detail.get(keys::INDEX).map(String::as_str), Some("0"));
         assert_eq!(
-            npu.detail.get("firmware").map(String::as_str),
+            npu.detail.get(keys::FIRMWARE).map(String::as_str),
             Some("1.2.3")
         );
     }
@@ -2008,7 +2013,10 @@ all_smi_gpu_utilization{gpu=\"Dual Labels\", instance=\"node-7\", gpu_uuid=\"GPU
         assert_eq!(parsed.gpu_info.len(), 1);
         assert_eq!(parsed.gpu_info[0].uuid, "GPU-Q");
         assert_eq!(
-            parsed.gpu_info[0].detail.get("index").map(String::as_str),
+            parsed.gpu_info[0]
+                .detail
+                .get(keys::INDEX)
+                .map(String::as_str),
             Some("2")
         );
     }

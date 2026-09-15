@@ -20,6 +20,7 @@ use crossterm::{queue, style::Color, style::Print};
 use crate::device::GpuInfo;
 use crate::device::MigGpuInfo;
 use crate::device::VgpuHostInfo;
+use crate::device::keys;
 use crate::device::types::{NvLinkRemoteType, ThermalProximity, ThermalProximityConfig};
 use crate::ui::renderers::utils::SUB_ITEM_INDENT;
 use crate::ui::text::print_colored_text;
@@ -265,7 +266,7 @@ pub fn print_gpu_info<W: Write>(
     };
     print_colored_text(stdout, &util_display, Color::White, None, None);
     print_colored_text(stdout, " VRAM:", Color::Blue, None, None);
-    let vram_display = if info.detail.get("metrics_available") == Some(&"false".to_string()) {
+    let vram_display = if info.detail.get(keys::METRICS_AVAILABLE) == Some(&"false".to_string()) {
         format!("{:>11}", "N/A")
     } else {
         // Format total memory with proper precision: 1 decimal for sub-GB, 0 decimal for GB+
@@ -285,7 +286,7 @@ pub fn print_gpu_info<W: Write>(
     // Tg* sensors return real die temperatures (~50 °C idle), so the numeric
     // reading is now meaningful and consistent with other platforms.
     let (temp_display, temp_color) =
-        if info.detail.get("metrics_available") == Some(&"false".to_string()) {
+        if info.detail.get(keys::METRICS_AVAILABLE) == Some(&"false".to_string()) {
             (format!("{:>7}", "N/A"), Color::White)
         } else if info.temperature_reading().is_none() {
             // No sensor yielded a usable reading and we have no fallback —
@@ -340,7 +341,7 @@ pub fn print_gpu_info<W: Write>(
         }
         Some(power) => match info
             .detail
-            .get("power_limit_max")
+            .get(keys::POWER_LIMIT_MAX)
             .and_then(|s| s.parse::<f64>().ok())
         {
             Some(power_max) => format!("{power:.0}/{power_max:.0}W"),
@@ -362,7 +363,7 @@ pub fn print_gpu_info<W: Write>(
     if info.device_type == "TPU" {
         let hlo_queue_size = info
             .detail
-            .get("HLO Queue Size")
+            .get(keys::HLO_QUEUE_SIZE)
             .map(|s| s.as_str())
             .unwrap_or("0");
         print_colored_text(stdout, " HLO Q:", Color::Cyan, None, None);
@@ -376,24 +377,24 @@ pub fn print_gpu_info<W: Write>(
     }
 
     // Display driver version if available
-    if let Some(driver_version) = info.detail.get("Driver Version") {
+    if let Some(driver_version) = info.detail.get(keys::DRIVER_VERSION) {
         print_colored_text(stdout, " Drv:", Color::Green, None, None);
         print_colored_text(stdout, driver_version, Color::White, None, None);
     }
 
     // Display AI library name and version using unified fields
     // Falls back to platform-specific fields for backward compatibility
-    if let Some(lib_name) = info.detail.get("lib_name") {
-        if let Some(lib_version) = info.detail.get("lib_version") {
+    if let Some(lib_name) = info.detail.get(keys::LIB_NAME) {
+        if let Some(lib_version) = info.detail.get(keys::LIB_VERSION) {
             print_colored_text(stdout, &format!(" {lib_name}:"), Color::Green, None, None);
             print_colored_text(stdout, lib_version, Color::White, None, None);
         }
     } else {
         // Backward compatibility: try platform-specific fields
-        if let Some(cuda_version) = info.detail.get("CUDA Version") {
+        if let Some(cuda_version) = info.detail.get(keys::CUDA_VERSION) {
             print_colored_text(stdout, " CUDA:", Color::Green, None, None);
             print_colored_text(stdout, cuda_version, Color::White, None, None);
-        } else if let Some(rocm_version) = info.detail.get("ROCm Version") {
+        } else if let Some(rocm_version) = info.detail.get(keys::ROCM_VERSION) {
             print_colored_text(stdout, " ROCm:", Color::Green, None, None);
             print_colored_text(stdout, rocm_version, Color::White, None, None);
         }
