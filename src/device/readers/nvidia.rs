@@ -649,6 +649,18 @@ impl<T: fmt::Debug> fmt::Display for DebugDisplay<T> {
 }
 
 // Macros to reduce boilerplate
+/// NVML writes the domain with eight digits, sysfs with four. Same address,
+/// two spellings, and only one of them joins.
+fn sysfs_bus_id(raw: &str) -> String {
+    match raw.split_once(':') {
+        Some((domain, rest)) => match u32::from_str_radix(domain, 16) {
+            Ok(domain) => format!("{domain:04x}:{}", rest.to_lowercase()),
+            Err(_) => raw.to_lowercase(),
+        },
+        None => raw.to_lowercase(),
+    }
+}
+
 macro_rules! add_detail {
     ($detail:expr_2021, $result:expr_2021, $key:expr_2021) => {
         if let Ok(value) = $result {
@@ -685,6 +697,14 @@ fn create_device_detail(
 
     let mem_total = device.memory_info().map(|m| m.total).unwrap_or(0);
     let uma = is_uma_device_with_mem(device, mem_total);
+
+    // The slot, spelled the way sysfs spells it, so a consumer can join this
+    // card to the PCI device it is.
+    add_detail!(
+        detail,
+        device.pci_info().map(|pci| sysfs_bus_id(&pci.bus_id)),
+        keys::PCI_BUS_ID
+    );
 
     // Suppress PCIe metrics for UMA devices — they use internal interconnect
     if uma {
@@ -1199,5 +1219,32 @@ Cached:          4096000 kB
         for (expected, variant) in variants.iter().enumerate() {
             assert_eq!(performance_state_to_u32(*variant), Some(expected as u32));
         }
+    }
+}
+
+#[cfg(test)]
+mod bus_id {
+    use super::sysfs_bus_id;
+
+    #[test]
+    fn nvmls_eight_digit_domain_becomes_sysfs_four() {
+        assert_eq!(sysfs_bus_id("00000000:01:00.0"), "0000:01:00.0");
+        assert_eq!(sysfs_bus_id("00000001:41:00.0"), "0001:41:00.0");
+    }
+
+    #[test]
+    fn a_spelling_already_right_is_left_alone() {
+        assert_eq!(sysfs_bus_id("0000:01:00.0"), "0000:01:00.0");
+    }
+
+    #[test]
+    fn upper_case_hex_is_lowered_the_way_sysfs_writes_it() {
+        assert_eq!(sysfs_bus_id("00000000:AF:00.0"), "0000:af:00.0");
+    }
+
+    #[test]
+    fn anything_unparseable_is_passed_through_rather_than_mangled() {
+        assert_eq!(sysfs_bus_id("not-an-address"), "not-an-address");
+        assert_eq!(sysfs_bus_id("zzzz:01:00.0"), "zzzz:01:00.0");
     }
 }
