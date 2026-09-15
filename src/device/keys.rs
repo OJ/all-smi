@@ -622,10 +622,10 @@ mod tests {
                     stack.push(path);
                     continue;
                 }
-                // The registry itself, and the reader-side helpers that spell
-                // conventions rather than use them.
-                let own = path.ends_with("device/keys.rs") || path.ends_with("detail_keys.rs");
-                if path.extension().is_none_or(|e| e != "rs") || own {
+                // The registry itself is the one place a key may be spelled
+                // out. Everywhere else, including the reader-side helpers,
+                // has to go through it -- that is where the last one hid.
+                if path.extension().is_none_or(|e| e != "rs") || path.ends_with("device/keys.rs") {
                     continue;
                 }
                 let source = std::fs::read_to_string(&path).expect("read source");
