@@ -862,8 +862,10 @@ fn get_gpu_info_nvidia_smi() -> Vec<GpuInfo> {
                     used_memory,
                     total_memory,
                     frequency: parts[7].parse().unwrap_or(0),
-                    power_consumption: parts[8].replace("[N/A]", "0").parse::<f64>().unwrap_or(0.0)
-                        / 1000.0,
+                    // `power.draw` with `nounits` is already watts. NVML's
+                    // `power_usage()` is milliwatts and is divided above; doing
+                    // it here too reported a loaded RTX 4090 as drawing 0.44 W.
+                    power_consumption: parts[8].replace("[N/A]", "0").parse::<f64>().unwrap_or(0.0),
                     gpu_core_count: None,
                     // nvidia-smi CSV path does not surface thresholds / P-state;
                     // they stay unavailable. The NVML path above is the
