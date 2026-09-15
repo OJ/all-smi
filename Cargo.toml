@@ -118,11 +118,10 @@ tonic-prost-build = "0.14"
 [features]
 default = ["cli", "amd"]
 cli = ["dep:clap", "dep:crossterm", "dep:axum", "dep:tower-http", "dep:anyhow", "dep:toml", "dep:dirs"]
-# Accepted no-op kept for downstream manifest compatibility. Linux AMD support
-# is now compiled into every glibc build as a runtime loader; the separately
-# built `all-smi-amd-plugin` owns `libamdgpu_top` and its libdrm linkage.
-# Consequently `default-features = false` no longer removes AMD detection from
-# the main crate, and neither feature state adds libdrm to a consumer binary.
+# Linux AMD support, as a runtime loader for the separately built
+# `all-smi-amd-plugin`, which owns `libamdgpu_top` and its libdrm linkage.
+# Neither feature state adds libdrm to a consumer binary; turning this off
+# leaves AMD cards to whatever else reads them.
 amd = []
 mock = ["cli", "dep:rand", "dep:hyper", "dep:hyper-util"]
 # Opt-in Furiosa NPU support. Surfaced by the `furiosa.*` doctor checks

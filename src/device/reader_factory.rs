@@ -47,10 +47,10 @@ use crate::device::readers::intel_gpu_linux;
 #[cfg(target_os = "windows")]
 use crate::device::readers::intel_gpu_windows;
 
-#[cfg(all(target_os = "linux", not(target_env = "musl")))]
+#[cfg(all(feature = "amd", target_os = "linux", not(target_env = "musl")))]
 use crate::device::platform_detection::has_amd;
 
-#[cfg(all(target_os = "linux", not(target_env = "musl")))]
+#[cfg(all(feature = "amd", target_os = "linux", not(target_env = "musl")))]
 use crate::device::readers::amd;
 
 pub fn get_gpu_readers() -> Vec<Box<dyn GpuReader>> {
@@ -100,9 +100,9 @@ pub fn get_gpu_readers() -> Vec<Box<dyn GpuReader>> {
                 readers.push(Box::new(google_tpu::GoogleTpuReader::new()));
             }
 
-            // AMD hardware detection is always present on glibc Linux. The
-            // native backend is optional at runtime and never prevents startup.
-            #[cfg(all(target_os = "linux", not(target_env = "musl")))]
+            // Detection is compiled in with the `amd` feature. The native
+            // backend stays optional at runtime and never prevents startup.
+            #[cfg(all(feature = "amd", target_os = "linux", not(target_env = "musl")))]
             if has_amd() {
                 match amd::AmdGpuReader::try_new() {
                     Ok(reader) => readers.push(Box::new(reader)),
