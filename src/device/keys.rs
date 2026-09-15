@@ -126,6 +126,27 @@ pub const VGPU_CAPABLE: &str = "vgpu_capable";
 // ---- AMD ----
 
 pub const ASIC_NAME: &str = "asic_name";
+pub const ASIC_FAMILY: &str = "asic_family";
+pub const CE_RAM_SIZE: &str = "ce_ram_size";
+pub const CHIP_REVISION: &str = "chip_revision";
+pub const COMPUTE_UNITS: &str = "compute_units";
+pub const CU_AO_MASK: &str = "cu_ao_mask";
+pub const ENABLED_RB_PIPES: &str = "enabled_rb_pipes";
+pub const EXTERNAL_REVISION: &str = "external_revision";
+pub const GART_PAGE_SIZE: &str = "gart_page_size";
+pub const GPU_COUNTER_FREQ: &str = "gpu_counter_freq";
+pub const HW_GFX_CONTEXTS: &str = "hw_gfx_contexts";
+pub const IDS_FLAGS: &str = "ids_flags";
+pub const PTE_FRAGMENT_SIZE: &str = "pte_fragment_size";
+pub const RENDER_BACKENDS: &str = "render_backends";
+pub const SHADER_ARRAYS_PER_ENGINE: &str = "shader_arrays_per_engine";
+pub const SHADER_ENGINES: &str = "shader_engines";
+pub const VCE_HARVEST_CONFIG: &str = "vce_harvest_config";
+pub const VIRTUAL_ADDRESS_ALIGNMENT: &str = "virtual_address_alignment";
+pub const VIRTUAL_ADDRESS_MAX: &str = "virtual_address_max";
+pub const VIRTUAL_ADDRESS_OFFSET: &str = "virtual_address_offset";
+pub const VRAM_BIT_WIDTH: &str = "vram_bit_width";
+pub const VRAM_TYPE: &str = "vram_type";
 pub const CURRENT_LINK: &str = "current_link";
 pub const HOTSPOT_TEMPERATURE: &str = "hotspot_temperature";
 pub const MAX_DPM_LINK: &str = "max_dpm_link";
@@ -140,6 +161,8 @@ pub const POWER_CAP_MAX: &str = "power_cap_max";
 pub const POWER_CAP_MIN: &str = "power_cap_min";
 pub const REVISION_ID: &str = "revision_id";
 pub const VBIOS_DATE: &str = "vbios_date";
+pub const VBIOS_NAME: &str = "vbios_name";
+pub const VBIOS_PN: &str = "vbios_pn";
 pub const VBIOS_VERSION: &str = "vbios_version";
 
 // ---- Intel ----
@@ -281,6 +304,7 @@ const ALL: &[&str] = &[
     ARC_CLOCK,
     ARC_FW_VERSION,
     ARR_SUPPORTED,
+    ASIC_FAMILY,
     ASIC_NAME,
     ASIC_TEMPERATURE,
     AXICLK_MHZ,
@@ -292,7 +316,9 @@ const ALL: &[&str] = &[
     BOARD_INFO,
     BOARD_TYPE,
     BRAND,
+    CE_RAM_SIZE,
     CHIP_NAME,
+    CHIP_REVISION,
     CHIP_VERSION,
     CLOCK_GRAPHICS_MAX,
     CLOCK_MEMORY_MAX,
@@ -300,6 +326,7 @@ const ALL: &[&str] = &[
     COLLECTION_METHOD,
     COMBINED_POWER_MW,
     COMPUTE_MODE,
+    COMPUTE_UNITS,
     COMPUTE_UTILIZATION,
     CORE_COUNT,
     CPU_POWER_WATTS,
@@ -308,6 +335,7 @@ const ALL: &[&str] = &[
     CURRENT,
     CURRENT_LINK,
     CURRENT_POWER,
+    CU_AO_MASK,
     DAC_TYPE,
     DDR_FW_VERSION,
     DDR_STATUS,
@@ -320,10 +348,12 @@ const ALL: &[&str] = &[
     DRIVER_VERSION,
     ECC_MODE_CURRENT,
     ECC_MODE_PENDING,
+    ENABLED_RB_PIPES,
     ENGINE_3D,
     ETH_FW_VERSION,
     ETH_STATUS0,
     ETH_STATUS1,
+    EXTERNAL_REVISION,
     E_CLUSTER_FREQ_MHZ,
     FAN_RPM,
     FAN_SPEED,
@@ -333,8 +363,10 @@ const ALL: &[&str] = &[
     FREE_MEMORY,
     FREQUENCY,
     FW_DATE,
+    GART_PAGE_SIZE,
     GOVERNOR,
     GPU_CORE_COUNT,
+    GPU_COUNTER_FREQ,
     GPU_POWER_WATTS,
     GPU_TEMPERATURE,
     GPU_TEMP_LIMIT,
@@ -347,6 +379,8 @@ const ALL: &[&str] = &[
     HLO_EXEC_P99_9,
     HLO_QUEUE_SIZE,
     HOTSPOT_TEMPERATURE,
+    HW_GFX_CONTEXTS,
+    IDS_FLAGS,
     INDEX,
     INLET_TEMPERATURE,
     INSTANCE_NAME,
@@ -417,11 +451,15 @@ const ALL: &[&str] = &[
     POWER_SOURCE,
     POWER_WATTS,
     PRODUCT_NAME,
+    PTE_FRAGMENT_SIZE,
     P_CLUSTER_FREQ_MHZ,
+    RENDER_BACKENDS,
     REVISION_ID,
     ROCM_VERSION,
     SERIAL_ID,
     SERIAL_NUMBER,
+    SHADER_ARRAYS_PER_ENGINE,
+    SHADER_ENGINES,
     SOURCE_FAN,
     SOURCE_FREQUENCY,
     SOURCE_MEMORY,
@@ -447,16 +485,24 @@ const ALL: &[&str] = &[
     UUID,
     VARIANT,
     VBIOS_DATE,
+    VBIOS_NAME,
+    VBIOS_PN,
     VBIOS_VERSION,
+    VCE_HARVEST_CONFIG,
     VDD_VOLTAGE,
     VENDOR,
     VERSION,
     VGPU_CAPABLE,
     VIDEO_PROCESSOR,
+    VIRTUAL_ADDRESS_ALIGNMENT,
+    VIRTUAL_ADDRESS_MAX,
+    VIRTUAL_ADDRESS_OFFSET,
     VOLTAGE,
+    VRAM_BIT_WIDTH,
     VRAM_BUDGET_PROCESS,
     VRAM_DEDICATED_L0,
     VRAM_TOTAL,
+    VRAM_TYPE,
     VRAM_USAGE_PROCESS,
     VREG_TEMPERATURE,
     VR_TEMPERATURE,
